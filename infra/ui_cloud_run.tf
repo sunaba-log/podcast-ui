@@ -39,23 +39,14 @@ resource "google_cloud_run_v2_service" "podcast_ui" {
         name  = "GOOGLE_CLOUD_PROJECT"
         value = var.project_id
       }
+      # Supabase(Postgres) へ DATABASE_URL で接続する。
+      # CLOUD_SQL_INSTANCE_CONNECTION_NAME を渡さないことで db-pool.ts の
+      # DATABASE_URL 経路（discrete params + SSL）に載る。
       env {
-        name  = "CLOUD_SQL_INSTANCE_CONNECTION_NAME"
-        value = google_sql_database_instance.podcast.connection_name
-      }
-      env {
-        name  = "DB_NAME"
-        value = google_sql_database.podcast.name
-      }
-      env {
-        name  = "DB_USER"
-        value = google_sql_user.podcast.name
-      }
-      env {
-        name = "DB_PASSWORD"
+        name = "DATABASE_URL"
         value_source {
           secret_key_ref {
-            secret  = data.google_secret_manager_secret.db_password.secret_id
+            secret  = data.google_secret_manager_secret.database_url.secret_id
             version = "latest"
           }
         }
