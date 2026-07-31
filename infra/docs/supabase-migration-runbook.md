@@ -60,7 +60,12 @@ UI の `ui/src/server/db-pool.ts` は `CLOUD_SQL_INSTANCE_CONNECTION_NAME` 未�
 
 - **根因**: `ui_cloud_run.tf` の `lifecycle.ignore_changes = [template[0].revision, ...]` により、gcloud が付けたリビジョン名が TF state に取り込まれ、TF の env 変更適用時に**同名リビジョンを別 config で再送**してしまう。通常運用（env 不変・image のみ gcloud 更新）では顕在化しないが、今回のように **TF がサービス template（env）を変更**すると衝突する。
 - **対処（実施）**: (1) `gcloud run services update podcast-ui-dev --remove-env-vars=CLOUD_SQL_INSTANCE_CONNECTION_NAME,DB_NAME,DB_USER --remove-secrets=DB_PASSWORD --update-secrets=DATABASE_URL=supabase-database-url-dev:latest` で live を TF 目標構成へ収束 → (2) infra ジョブ再実行で terraform が refresh し差分ゼロ＝成功。この間 dev は「Cloud SQL のまま」で常時正常（automator だけ先行して Supabase になった短時間の分裂状態はデータ同一のため無害）。
-- **恒久対策（未実施・要判断）**: 案a) UI の DB env を gcloud 側管理にし TF は `template[0].containers[0].env` も ignore、案b) `ui`/`infra` ジョブを直列化（infra→ui 依存）。**Stage 3（prod）では上記「対処」を最初から手順に織り込む**（下記 Stage 3 参照）。
+- **⚠️ さらに落とし穴②（トラフィックのピン留め）**: cd.yml の ui deploy は `--no-traffic` + `update-traffic --to-revisions ${SUFFIX}=100` で**特定リビジョンにトラフィックを固定**する。そのため上記「対処」の `services update` で作った DATABASE_URL リビジョンは **0% トラフィック**のままで、旧 connector リビジョンが 100% を保持し続けた。結果、**UI は Cloud SQL に書き続け（automator だけ Supabase）、テストアップロードで `Episode not found: episode_id=11` が発生**（automator が Supabase を見るが、UI が Cloud SQL に書いたため不一致）。読み取りは両DB同一データのため成功に見え、盲点だった。**修正**: `gcloud run services update-traffic podcast-ui-dev --to-revisions=<DATABASE_URL revision>=100`。**教訓**: env 切替は「リビジョン作成」＋「**トラフィックの明示切替**」＋「**書き込み系のE2E検証**（読み取りは同一データで盲点になる）」まで必須。
+- **恒久対策（未実施・要判断）**: 案a) UI の DB env を gcloud 側管理にし TF は `template[0].containers[0].env` も ignore、案b) `ui`/`infra` ジョブを直列化（infra→ui 依存）。**Stage 3（prod）では上記「対処」＋トラフィック明示切替を最初から手順に織り込む**（下記 Stage 3 参照）。
+
+### E2E 検証結果（dev）✅
+- **読み取り**: UI ログイン→チャンネル/エピソード表示（`/episodes` HTTP 200）。
+- **書き込み＋パイプライン**: テストアップロード → UI が **Supabase** に episode 11 作成（`processing`）→ GCS→Eventarc→Workflows→automator Job 起動 → automator が Supabase 上で処理（文字起こし＋Gemini 要約で **title/概要を自動生成**）→ 音声変換・R2 配信 → Supabase を `completed` に更新（duration 4502s, description 1407字）。Discord に完了通知。**全経路 Supabase で実証**。
 
 ---
 
