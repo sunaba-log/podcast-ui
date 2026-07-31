@@ -28,7 +28,21 @@ async function createPool(): Promise<Pool> {
         "DATABASE_URL or CLOUD_SQL_INSTANCE_CONNECTION_NAME is required",
       );
     }
-    return new Pool({ connectionString: databaseUrl, max: 10 });
+    // node-pg の connectionString 経由は Supabase プーラーの証明書検証で失敗する
+    // （sslmode=require が verify-full 扱いとなり SELF_SIGNED_CERT_IN_CHAIN）。
+    // URL を分解し、非ローカル接続は SSL（証明書検証なし）を明示して接続する。
+    const parsed = new URL(databaseUrl);
+    const isLocal =
+      parsed.hostname === "127.0.0.1" || parsed.hostname === "localhost";
+    return new Pool({
+      host: parsed.hostname,
+      port: parsed.port ? Number(parsed.port) : 5432,
+      user: decodeURIComponent(parsed.username),
+      password: decodeURIComponent(parsed.password),
+      database: parsed.pathname.replace(/^\//, "") || "postgres",
+      ssl: isLocal ? undefined : { rejectUnauthorized: false },
+      max: 10,
+    });
   }
 
   const credentials = getGoogleServiceAccountCredentials();

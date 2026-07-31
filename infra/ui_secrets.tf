@@ -12,10 +12,17 @@ data "google_secret_manager_secret" "cron_secret" {
   secret_id = var.cron_secret_id
 }
 
+# 移行先 DB（Supabase）の DATABASE_URL。値は手動管理（cloud_sql.tf での生成を廃止）。
+data "google_secret_manager_secret" "database_url" {
+  project   = var.project_id
+  secret_id = var.database_url_secret_name
+}
+
 resource "google_secret_manager_secret_iam_member" "app_secrets" {
   for_each = {
-    db_password = data.google_secret_manager_secret.db_password.secret_id
-    cron_secret = data.google_secret_manager_secret.cron_secret.secret_id
+    db_password  = data.google_secret_manager_secret.db_password.secret_id
+    cron_secret  = data.google_secret_manager_secret.cron_secret.secret_id
+    database_url = data.google_secret_manager_secret.database_url.secret_id
   }
 
   project   = var.project_id
