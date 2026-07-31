@@ -1,5 +1,12 @@
 # Supabase 移行 手順書（Issue #90）
 
+> **進捗（2026-07-31）**
+> - ✅ **Stage 1（dev データ移行）完了**。Supabase `sparkcast-dev`（ref `jsxhsxvpzszdtjolqsyv` / 東京 / Free）を作成し、Cloud SQL dev の全7テーブルを移行（行数一致を確認: users2 / podcasts7 / podcast_ownerships4 / episodes10 / api_usage_logs5 / pre_registered_emails1 / schema_migrations8）。
+> - 接続は **Session pooler（IPv4）** `aws-0-ap-northeast-1.pooler.supabase.com:5432` / user `postgres.jsxhsxvpzszdtjolqsyv` / `sslmode=require`（Direct は IPv6 専用のため不可）。
+> - 検証済みの完全 DATABASE_URL を Secret Manager `supabase-database-url-dev`（dev プロジェクト）に格納・接続実証済み。
+> - 既存 dev には未変更（Cloud SQL 稼働のまま＝ロールバック可）。**次は Stage 2（dev 切替）**。
+
+
 Cloud SQL（PostgreSQL・常時課金 月約 $27）を廃止し、Supabase 無料枠の PostgreSQL へ移行する。
 **dev を先に完全に通してから prod**、という順で進める。破壊的操作（Cloud SQL 削除）は両環境の切替・検証が終わった最後に 1 回だけ行う。
 
