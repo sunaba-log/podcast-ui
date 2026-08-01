@@ -252,6 +252,23 @@ variable "budget_amount_jpy" {
   }
 }
 
+variable "backup_retention_days" {
+  type        = number
+  description = "Days to retain DB backup dumps in GCS before deletion (#90 Stage 4)."
+  default     = 30
+
+  validation {
+    condition     = var.backup_retention_days > 0
+    error_message = "backup_retention_days must be a positive number."
+  }
+}
+
+variable "backup_scheduler_cron" {
+  type        = string
+  description = "Cron schedule (Asia/Tokyo) for the daily DB backup job."
+  default     = "0 3 * * *"
+}
+
 variable "enable_guest_mode" {
   type        = bool
   description = "ゲストログイン（「ゲストとして試す」）機能の有効化フラグ（dev のみ true とする）"

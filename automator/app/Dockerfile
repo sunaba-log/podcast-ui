@@ -8,6 +8,17 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends ffmpeg && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
+# db-backup ジョブ用に pg_dump 17 を導入（Supabase は Postgres 17。pg_dump は
+# サーバ以上のメジャーが必要なため、PGDG 公式 apt から 17 を明示インストールする）。
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends curl ca-certificates gnupg && \
+    install -d /usr/share/postgresql-common/pgdg && \
+    curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc && \
+    echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(. /etc/os-release && echo $VERSION_CODENAME)-pgdg main" > /etc/apt/sources.list.d/pgdg.list && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends postgresql-client-17 && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 RUN pip install --no-cache-dir --upgrade pip uv
 WORKDIR /workspace
 
