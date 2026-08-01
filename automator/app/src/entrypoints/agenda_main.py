@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 
 from infrastructure.discord_fetcher import DiscordFetcher
 from infrastructure.notifier import Notifier
+from infrastructure.secret_manager import SecretManagerClient
 from services.agenda_formatter import format_agenda_message
 from services.firestore_manager import FirestoreManager
 from services.news_fetcher import DEFAULT_RSS_SOURCES, NewsFetcher
@@ -141,13 +142,28 @@ def _fetch_from_firestore(
 
 def _fetch_from_discord(cfg: AgendaEnvConfig) -> tuple[AgendaResult | None, list[str], list[NewsCandidate]]:
     """Fetch Discord transcripts, reconstruct episodes, and match RSS news."""
-    if not cfg.discord_bot_token or not cfg.discord_transcript_channel_id:
+    discord_bot_token = cfg.discord_bot_token
+
+    if cfg.project_id and cfg.podcast_id:
+        try:
+            logger.info("Fetching channel credentials for podcast_id: %s", cfg.podcast_id)
+            client = SecretManagerClient(project_id=cfg.project_id)
+            creds = client.get_channel_credentials(podcast_id=cfg.podcast_id)
+            discord_bot_token = creds.discord_bot_token
+        except Exception:  # noqa: BLE001
+            logger.warning(
+                "Could not load channel credentials for podcast_id %s, falling back to environment variable",
+                cfg.podcast_id,
+                exc_info=True,
+            )
+
+    if not discord_bot_token or not cfg.discord_transcript_channel_id:
         logger.info(
-            "DISCORD_BOT_TOKEN / DISCORD_TRANSCRIPT_CHANNEL_ID が未設定のため transcript 取得をスキップします。",
+            "discord_bot_token / DISCORD_TRANSCRIPT_CHANNEL_ID が未設定のため transcript 取得をスキップします。",
         )
         return None, [], []
 
-    fetcher = DiscordFetcher(bot_token=cfg.discord_bot_token)
+    fetcher = DiscordFetcher(bot_token=discord_bot_token)
     messages = fetcher.fetch_messages(
         channel_id=cfg.discord_transcript_channel_id,
         limit=cfg.transcript_fetch_limit,

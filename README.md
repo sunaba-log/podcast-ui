@@ -1,4 +1,7 @@
-# sparkcast
+![SparkCast Logo](docs/images/leader_board.png)
+
+# SparkCast
+
 
 SparkCast — ポッドキャストの運営を自動化・支援するツールのモノレポ。Web 管理アプリと
 音声処理オートメーターを単一リポジトリで管理する。

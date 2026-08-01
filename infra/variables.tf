@@ -251,3 +251,21 @@ variable "budget_amount_jpy" {
     error_message = "budget_amount_jpy must be a positive number."
   }
 }
+
+variable "enable_guest_mode" {
+  type        = bool
+  description = "ゲストログイン（「ゲストとして試す」）機能の有効化フラグ（dev のみ true とする）"
+  default     = false
+}
+
+variable "rate_limit_daily" {
+  type        = string
+  description = "1日あたりのレート制限回数"
+  default     = ""
+}
+
+variable "rate_limit_hourly" {
+  type        = string
+  description = "1時間あたりのレート制限回数"
+  default     = ""
+}

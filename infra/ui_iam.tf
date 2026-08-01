@@ -4,10 +4,11 @@
 #  旧 ui/infra/iam.tf の集合を統合。SA 実体・binding は ui 側定義を正とする）
 locals {
   app_project_roles = [
-    "roles/cloudsql.client",    # Cloud SQL 接続（Cloud SQL Connector）
-    "roles/datastore.user",     # Firestore 読み書き
-    "roles/firebaseauth.admin", # セッションCookie検証 / Auth管理
-    "roles/aiplatform.user",    # Vertex AI（議事録チャットの生成・埋め込み）
+    "roles/cloudsql.client",     # Cloud SQL 接続（Cloud SQL Connector）
+    "roles/datastore.user",      # Firestore 読み書き
+    "roles/firebaseauth.admin",  # セッションCookie検証 / Auth管理
+    "roles/aiplatform.user",     # Vertex AI（議事録チャットの生成・埋め込み）
+    "roles/secretmanager.admin", # シークレットの作成・取得・バージョン追加・削除
   ]
 }
 

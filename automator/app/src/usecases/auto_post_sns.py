@@ -9,8 +9,10 @@ from typing import TYPE_CHECKING
 from domain.models.sns_post import SnsPost
 
 if TYPE_CHECKING:
-    from infrastructure.x_api import XClient
+    from domain.interfaces import SecretProvider
     from services.firestore_manager import FirestoreManager
+
+from infrastructure.x_api import XClient
 
 logger = logging.getLogger(__name__)
 
@@ -22,11 +24,13 @@ class AutoPostSnsUsecase:
         self,
         *,
         firestore_manager: FirestoreManager,
-        x_client: XClient,
+        secret_provider: SecretProvider | None = None,
+        x_client: XClient | None = None,
         logger: logging.Logger | None = None,
     ) -> None:
         """Initialize use case."""
         self._firestore_manager = firestore_manager
+        self._secret_provider = secret_provider
         self._x_client = x_client
         self._logger = logger or logging.getLogger(__name__)
 
@@ -88,9 +92,51 @@ class AutoPostSnsUsecase:
         )
         post_text = post.generate_text()
 
+        # Parse reference path to get podcast_id
+        podcast_id = None
+        parts = reference_path.split("/")
+        if len(parts) >= 2 and parts[0] == "podcasts":  # noqa: PLR2004
+            podcast_id = parts[1]
+
+        # Determine which XClient to use
+        x_client = None
+        if self._secret_provider and podcast_id:
+            try:
+                self._logger.info("Fetching channel credentials for podcast_id: %s", podcast_id)
+                creds = self._secret_provider.get_channel_credentials(podcast_id)
+                if creds.x_api_key and creds.x_api_secret and creds.x_access_token and creds.x_access_token_secret:
+                    x_client = XClient(
+                        api_key=creds.x_api_key,
+                        api_secret=creds.x_api_secret,
+                        access_token=creds.x_access_token,
+                        access_token_secret=creds.x_access_token_secret,
+                    )
+                    # Verify credentials
+                    if not x_client.verify_auth():
+                        self._logger.error("X credentials verification failed for podcast_id: %s", podcast_id)
+                        x_client = None
+                else:
+                    self._logger.info(
+                        "X credentials are incomplete for podcast_id: %s. Skipping custom XClient initialization.",
+                        podcast_id,
+                    )
+                    x_client = None
+            except Exception:
+                self._logger.exception("Failed to get or verify channel credentials for podcast_id: %s", podcast_id)
+                x_client = None
+
+        if not x_client:
+            if self._x_client:
+                self._logger.info("Falling back to default XClient")
+                x_client = self._x_client
+            else:
+                self._logger.error("No valid XClient could be initialized for podcast_id: %s", podcast_id)
+                self._firestore_manager.update_sns_promotion_status(reference_path, "failed")
+                return
+
         self._logger.info("Attempting to post thread. doc_id: %s, text_length: %s", doc_id, len(post_text))
         try:
-            success = self._x_client.post_thread(post_text)
+            success = x_client.post_thread(post_text)
             if success:
                 self._firestore_manager.update_sns_promotion_status(reference_path, "posted")
                 self._logger.info("SNS promotion posted successfully. doc_id: %s", doc_id)

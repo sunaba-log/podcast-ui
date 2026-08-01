@@ -15,3 +15,6 @@ override.tf.json
 terraform.rc
 
 # next
+
+# mac
+.DS_Store

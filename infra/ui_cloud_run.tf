@@ -39,23 +39,14 @@ resource "google_cloud_run_v2_service" "podcast_ui" {
         name  = "GOOGLE_CLOUD_PROJECT"
         value = var.project_id
       }
+      # Supabase(Postgres) へ DATABASE_URL で接続する。
+      # CLOUD_SQL_INSTANCE_CONNECTION_NAME を渡さないことで db-pool.ts の
+      # DATABASE_URL 経路（discrete params + SSL）に載る。
       env {
-        name  = "CLOUD_SQL_INSTANCE_CONNECTION_NAME"
-        value = google_sql_database_instance.podcast.connection_name
-      }
-      env {
-        name  = "DB_NAME"
-        value = google_sql_database.podcast.name
-      }
-      env {
-        name  = "DB_USER"
-        value = google_sql_user.podcast.name
-      }
-      env {
-        name = "DB_PASSWORD"
+        name = "DATABASE_URL"
         value_source {
           secret_key_ref {
-            secret  = data.google_secret_manager_secret.db_password.secret_id
+            secret  = data.google_secret_manager_secret.database_url.secret_id
             version = "latest"
           }
         }
@@ -77,6 +68,27 @@ resource "google_cloud_run_v2_service" "podcast_ui" {
           }
         }
       }
+      dynamic "env" {
+        for_each = var.enable_guest_mode ? [1] : []
+        content {
+          name  = "ENABLE_GUEST_MODE"
+          value = "true"
+        }
+      }
+      dynamic "env" {
+        for_each = var.rate_limit_daily != "" ? [1] : []
+        content {
+          name  = "RATE_LIMIT_DAILY"
+          value = var.rate_limit_daily
+        }
+      }
+      dynamic "env" {
+        for_each = var.rate_limit_hourly != "" ? [1] : []
+        content {
+          name  = "RATE_LIMIT_HOURLY"
+          value = var.rate_limit_hourly
+        }
+      }
     }
   }
 
@@ -89,11 +101,13 @@ resource "google_cloud_run_v2_service" "podcast_ui" {
       template[0].containers[0].image,
       template[0].revision,
       template[0].labels,
+      template[0].annotations,
       # default_labels によるサービスラベル更新を抑止（gcloud 管理サービスへの不要 PATCH 回避）。
       # 「redundant」警告が出ても labels だけでは default_labels を止められないため両者を無視する。
       labels,
       terraform_labels,
       effective_labels,
+      annotations,
       traffic,
       client,
       client_version,

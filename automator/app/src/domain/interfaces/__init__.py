@@ -3,6 +3,7 @@
 from .gateways import (
     AgendaSerializer,
     BlobSource,
+    ChannelCredentials,
     DiscordTranscriptSource,
     EpisodeRepository,
     NewsResearcher,
@@ -16,6 +17,7 @@ from .gateways import (
 __all__ = [
     "AgendaSerializer",
     "BlobSource",
+    "ChannelCredentials",
     "DiscordTranscriptSource",
     "EpisodeRepository",
     "NewsResearcher",

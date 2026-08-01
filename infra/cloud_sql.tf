@@ -46,25 +46,8 @@ resource "google_sql_user" "podcast" {
   project  = var.project_id
 }
 
-resource "google_secret_manager_secret" "database_url" {
-  secret_id = var.database_url_secret_name
-  project   = var.project_id
-
-  replication {
-    auto {}
-  }
-}
-
-resource "google_secret_manager_secret_version" "database_url" {
-  secret = google_secret_manager_secret.database_url.id
-  secret_data = format(
-    "postgresql://%s:%s@/%s?host=/cloudsql/%s",
-    var.cloud_sql_database_user,
-    random_password.podcast_database.result,
-    var.cloud_sql_database_name,
-    google_sql_database_instance.podcast.connection_name,
-  )
-}
+# DATABASE_URL シークレットは Supabase 移行に伴い「値は手動管理」へ移行した（#90）。
+# 参照先は var.database_url_secret_name（環境別 tfvars）。ここでは生成しない。
 
 resource "google_secret_manager_secret" "database_password" {
   secret_id = "${var.system}-database-password-${var.environment}"

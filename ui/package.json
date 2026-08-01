@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@google-cloud/cloud-sql-connector": "^1.11.1",
+    "@google-cloud/secret-manager": "^6.2.0",
     "@google-cloud/storage": "^7.17.3",
     "@google/genai": "^2.10.0",
     "firebase": "^12.15.0",

@@ -47,6 +47,5 @@ module "cloud_run_job" {
 
   depends_on = [
     google_project_service.required,
-    google_secret_manager_secret_version.database_url,
   ]
 }
