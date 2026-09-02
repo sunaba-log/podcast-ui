@@ -118,13 +118,10 @@ resource "google_cloud_run_v2_service" "sparkcast_ui" {
       # ⚠️ ただし ignore したままだとその名前が state に取り込まれ、TF が
       # template（env 等）を変更する際に「同名リビジョンを別 config で再送」して
       # 409 になる（#90 Stage 2 / #72 Stage 7 で実際に発生）。
-      # TF 側から env を変更する必要が生じたときは、一時的にここを外して
-      # Cloud Run に自動採番させること。
-      #
-      # ⚠️ #72 Stage 8（アプリ実行 SA の改名）のあいだだけ外している。
-      # SA 変更は template[0].service_account の書き換え＝新リビジョン作成なので、
-      # ignore したままだと確実に 409 になる。Stage 8 完了後に必ず戻すこと。
-      # template[0].revision,
+      # TF 側から env や service_account を変更する必要が生じたときは、
+      # 一時的にここを外して Cloud Run に自動採番させること
+      # （#72 Stage 8 の SA 改名では実際にそうした）。
+      template[0].revision,
       template[0].labels,
       template[0].annotations,
       # default_labels によるサービスラベル更新を抑止（gcloud 管理サービスへの不要 PATCH 回避）。
@@ -147,23 +144,21 @@ resource "google_cloud_run_v2_service" "sparkcast_ui" {
 
 # 管理画面はアプリ側の Firebase Auth で保護するため、HTTP は公開する。
 #
-# ⚠️ 一時的に state から切り離している（#72 Stage 7）。
-#
-# サービス改名は allUsers バインディングの replace を伴うが、旧サービスからの
-# destroy に必要な run.services.setIamPolicy を共有デプロイ SA が持っていなかった。
-# 権限付与（ui_github_actions.tf の shared_deployer_run_admin）を同じ plan に入れても、
-# Terraform は destroy の 403 で新しい操作のスケジュールを止めるため、付与の create まで
-# 到達せず永久に解消しない状態だった。
-#
-# そこで removed ブロックで「API を呼ばずに state から外す」ことで失敗する destroy を
-# plan から消し、権限付与とサービス改名を通す。旧バインディングは旧サービスごと削除される。
-# 次の PR でこの removed を消してリソース定義を復活させ、新サービスに付与し直す。
-removed {
-  from = google_cloud_run_v2_service_iam_member.public
+# ⚠️ このバインディングの操作には run.services.setIamPolicy が必要で、共有デプロイ SA が
+# 持つ editor には含まれない。ui_github_actions.tf の shared_deployer_run_admin で
+# 付与済み（#72 Stage 7）。付与を消すとサービスの作り直しができなくなる。
+resource "google_cloud_run_v2_service_iam_member" "public" {
+  project = var.project_id
+  # ドメイン制限共有の解除（下記 org policy）が先に必要
+  location = google_cloud_run_v2_service.sparkcast_ui.location
+  name     = google_cloud_run_v2_service.sparkcast_ui.name
+  role     = "roles/run.invoker"
+  member   = "allUsers"
 
-  lifecycle {
-    destroy = false
-  }
+  # ⚠️ ここに shared_deployer_run_admin への depends_on を足してはいけない。
+  # 付与の create が、失敗し得る旧バインディングの destroy と同じ依存鎖に載り、
+  # destroy が失敗すると付与まで実行されなくなる（#72 で実際に発生）。
+  depends_on = [google_org_policy_policy.allowed_policy_member_domains]
 }
 
 output "cloud_run_uri" {

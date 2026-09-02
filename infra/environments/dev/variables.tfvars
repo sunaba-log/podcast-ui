@@ -7,12 +7,9 @@ gcs_force_destroy = true
 backup_bucket_force_destroy = true
 # 実リソース名の接頭辞（#72）
 automator_name_prefix = "sparkcast-automator"
-# ⚠️ #72 Stage 7 の 2 段階 apply の 1 段階目。deletion_protection は destroy 時に
-# state 側の値が読まれるため、「false 化」と「改名」を同一 apply で行うと destroy が
-# 失敗する（force_destroy と同じ）。まず旧名のまま deletion_protection = false を
-# state に入れ、次の PR で sparkcast-ui へ戻して改名する。
-# この 1 段階目で dev のドメインマッピングと Scheduler も復旧する。
-ui_name_prefix     = "podcast-ui"
+# #72 Stage 7: Cloud Run Service / Artifact Registry / Scheduler を sparkcast 名へ。
+# deletion_protection = false は 1 段階目（#135）で state に入れてある。
+ui_name_prefix     = "sparkcast-ui"
 gcs_retention_days = 3
 gcs_cors_origins = [
   "http://localhost:3000",
