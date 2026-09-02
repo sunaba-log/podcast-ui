@@ -120,7 +120,11 @@ resource "google_cloud_run_v2_service" "sparkcast_ui" {
       # 409 になる（#90 Stage 2 / #72 Stage 7 で実際に発生）。
       # TF 側から env を変更する必要が生じたときは、一時的にここを外して
       # Cloud Run に自動採番させること。
-      template[0].revision,
+      #
+      # ⚠️ #72 Stage 8（アプリ実行 SA の改名）のあいだだけ外している。
+      # SA 変更は template[0].service_account の書き換え＝新リビジョン作成なので、
+      # ignore したままだと確実に 409 になる。Stage 8 完了後に必ず戻すこと。
+      # template[0].revision,
       template[0].labels,
       template[0].annotations,
       # default_labels によるサービスラベル更新を抑止（gcloud 管理サービスへの不要 PATCH 回避）。

@@ -39,8 +39,10 @@ manage_firestore_database          = false
 budget_amount_jpy                  = 5000
 
 # podcast-ui（Cloud Run Service）
-app_service_account_id           = "podcast-ui-dev"
-app_service_account_display_name = "Podcast UI dev"
+# #72 Stage 8: アプリ実行 SA を sparkcast 名へ。SA は再作成となり、
+# ui_iam.tf / ui_secrets.tf / ui_github_actions.tf の binding が全て貼り直される。
+app_service_account_id           = "sparkcast-ui-dev"
+app_service_account_display_name = "SparkCast UI dev"
 custom_domain                    = "dev.sparkcast.sunabalog.com"
 enable_guest_mode                = true
 rate_limit_daily                 = "500"
