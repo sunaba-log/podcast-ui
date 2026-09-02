@@ -6,7 +6,7 @@
 resource "google_artifact_registry_repository" "sparkcast_ui" {
   project       = var.project_id
   location      = var.region
-  repository_id = "podcast-ui"
+  repository_id = local.ui_name_prefix
   format        = "DOCKER"
   description   = "podcast-ui のアプリイメージ"
 
@@ -16,7 +16,7 @@ resource "google_artifact_registry_repository" "sparkcast_ui" {
 resource "google_cloud_run_v2_service" "sparkcast_ui" {
   project  = var.project_id
   location = var.region
-  name     = "podcast-ui-${var.environment}"
+  name     = "${local.ui_name_prefix}-${var.environment}"
   ingress  = "INGRESS_TRAFFIC_ALL"
 
   template {

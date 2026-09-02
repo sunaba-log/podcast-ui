@@ -4,12 +4,12 @@ module "cloud_run_job" {
   project_id                     = var.project_id
   region                         = var.region
   environment                    = var.environment
-  system                         = var.system
+  system                         = local.automator_name_prefix
   image_name                     = "app"
   docker_context_path            = "${path.module}/../apps/automator/app"
   docker_build_command           = "make docker-build"
   docker_build_result_image_name = "podcast-automator-app:latest"
-  job_name                       = "${var.system}-app-${var.environment}"
+  job_name                       = "${local.automator_name_prefix}-app-${var.environment}"
   service_account_email          = local.default_compute_service_account
   cloud_sql_instances            = [google_sql_database_instance.podcast.connection_name]
 

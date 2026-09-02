@@ -9,7 +9,7 @@
 
 # Cloud Run Job: agenda
 resource "google_cloud_run_v2_job" "agenda" {
-  name                = "${var.system}-agenda-${var.environment}"
+  name                = "${local.automator_name_prefix}-agenda-${var.environment}"
   location            = var.region
   deletion_protection = false
 
@@ -94,7 +94,7 @@ resource "google_cloud_run_v2_job" "agenda" {
 
 # Cloud Scheduler: 毎週水曜 07:00 JST
 resource "google_cloud_scheduler_job" "agenda" {
-  name             = "${var.system}-agenda-${var.environment}"
+  name             = "${local.automator_name_prefix}-agenda-${var.environment}"
   description      = "Weekly agenda notification to Discord (every Wednesday 07:00 JST)"
   schedule         = "0 7 * * 3"
   time_zone        = "Asia/Tokyo"
