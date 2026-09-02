@@ -13,7 +13,7 @@
 .PHONY: terraform-clean # removes local created terraform resources
 
 # 統合後の Terraform は単一の infra/（env 毎に 1 state）で管理する。
-# app（Python）まわりの install/lint/test/docker-build は automator/Makefile 側。
+# app（Python）まわりの install/lint/test/docker-build は apps/automator/Makefile 側。
 -include .env
 export
 
@@ -36,7 +36,7 @@ GOOGLE_SETTINGS := $(shell if [ -n "$(GOOGLE_APPLICATION_CREDENTIALS_ABS)" ]; th
 GOOGLE_TOKEN_SETTINGS := $(shell if [ -n "$(GOOGLE_OAUTH_ACCESS_TOKEN)" ]; then echo "-e GOOGLE_OAUTH_ACCESS_TOKEN"; fi)
 GCLOUD_ADC_SETTINGS := $(shell if [ -z "$(GOOGLE_OAUTH_ACCESS_TOKEN)" ] && [ -z "$(GOOGLE_APPLICATION_CREDENTIALS_ABS)" ] && [ -d "$(HOME)/.config/gcloud" ]; then echo "-v $(HOME)/.config/gcloud:/root/.config/gcloud:ro -e GOOGLE_APPLICATION_CREDENTIALS=/root/.config/gcloud/application_default_credentials.json"; fi)
 # リポジトリルートを /work にマウントし、Terraform の作業ディレクトリは /work/infra。
-# app イメージビルドの local-exec が参照する ${path.module}/../automator/app（= /work/automator/app）も
+# app イメージビルドの local-exec が参照する ${path.module}/../apps/automator/app（= /work/apps/automator/app）も
 # 同じマウント内に含める。
 TERRAFORM_BASE_COMMAND=docker run --rm ${INTERACTIVE_FLAG} --env-file .env -v $(PWD):/work -w /work/infra ${DOCKER_SOCKET_SETTINGS} ${SSH_SETTINGS} ${GOOGLE_SETTINGS} ${GOOGLE_TOKEN_SETTINGS} ${GCLOUD_ADC_SETTINGS} terraform:latest
 
