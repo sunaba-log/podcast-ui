@@ -37,12 +37,10 @@ budget_amount_jpy                  = 5000
 # podcast-ui（Cloud Run Service）
 # #72 Stage 8: アプリ実行 SA を sparkcast 名へ。SA は再作成となり、
 # ui_iam.tf / ui_secrets.tf / ui_github_actions.tf の binding が全て貼り直される。
-# ⚠️ #72 Stage 8 は 2 段階。共有デプロイ SA に iam.serviceAccounts.setIamPolicy が
-# 無く、SA 改名に伴う binding の貼り直しが 403 で失敗した。失敗する destroy と同じ
-# plan では権限付与自体が作成されない（#133 と同じ）ため、まず旧名に戻して権限だけ
-# 入れる。次の PR で sparkcast-ui-dev に戻す。
-app_service_account_id           = "podcast-ui-dev"
-app_service_account_display_name = "Podcast UI dev"
+# #72 Stage 8: アプリ実行 SA を sparkcast 名へ。SA は再作成となり、
+# ui_iam.tf / ui_secrets.tf / ui_github_actions.tf の binding が全て貼り直される。
+app_service_account_id           = "sparkcast-ui-dev"
+app_service_account_display_name = "SparkCast UI dev"
 custom_domain                    = "dev.sparkcast.sunabalog.com"
 enable_guest_mode                = true
 rate_limit_daily                 = "500"
