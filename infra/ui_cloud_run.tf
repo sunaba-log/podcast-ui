@@ -3,7 +3,7 @@
 # ここではサービス定義・レジストリを管理する。API 有効化は
 # google_project_service.required（locals.required_services）に集約している。
 
-resource "google_artifact_registry_repository" "podcast_ui" {
+resource "google_artifact_registry_repository" "sparkcast_ui" {
   project       = var.project_id
   location      = var.region
   repository_id = "podcast-ui"
@@ -13,7 +13,7 @@ resource "google_artifact_registry_repository" "podcast_ui" {
   depends_on = [google_project_service.required]
 }
 
-resource "google_cloud_run_v2_service" "podcast_ui" {
+resource "google_cloud_run_v2_service" "sparkcast_ui" {
   project  = var.project_id
   location = var.region
   name     = "podcast-ui-${var.environment}"
@@ -124,8 +124,8 @@ resource "google_cloud_run_v2_service" "podcast_ui" {
 resource "google_cloud_run_v2_service_iam_member" "public" {
   project = var.project_id
   # ドメイン制限共有の解除（下記 org policy）が先に必要
-  location = google_cloud_run_v2_service.podcast_ui.location
-  name     = google_cloud_run_v2_service.podcast_ui.name
+  location = google_cloud_run_v2_service.sparkcast_ui.location
+  name     = google_cloud_run_v2_service.sparkcast_ui.name
   role     = "roles/run.invoker"
   member   = "allUsers"
 
@@ -134,7 +134,7 @@ resource "google_cloud_run_v2_service_iam_member" "public" {
 
 output "cloud_run_uri" {
   description = "Cloud Run サービスの URL"
-  value       = google_cloud_run_v2_service.podcast_ui.uri
+  value       = google_cloud_run_v2_service.sparkcast_ui.uri
 }
 
 # 組織のドメイン制限共有ポリシーの下では allUsers への権限付与ができないため、

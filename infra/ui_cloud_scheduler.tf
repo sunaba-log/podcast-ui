@@ -8,7 +8,7 @@ data "google_secret_manager_secret_version" "cron_secret" {
 }
 
 locals {
-  app_base_url = google_cloud_run_v2_service.podcast_ui.uri
+  app_base_url = google_cloud_run_v2_service.sparkcast_ui.uri
 }
 
 resource "google_cloud_scheduler_job" "cleanup_uploads" {
