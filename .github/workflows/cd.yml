@@ -121,8 +121,8 @@ jobs:
             {
               echo "ENVIRONMENT=dev"
               echo "PROJECT_ID=sunabalog-dev"
-              echo "SERVICE=podcast-ui-dev"
-              echo "IMAGE=asia-northeast1-docker.pkg.dev/sunabalog-dev/podcast-ui/podcast-ui"
+              echo "SERVICE=sparkcast-ui-dev"
+              echo "IMAGE=asia-northeast1-docker.pkg.dev/sunabalog-dev/sparkcast-ui/sparkcast-ui"
               echo "WORKLOAD_IDENTITY_PROVIDER=projects/452347646684/locations/global/workloadIdentityPools/github-actions/providers/github-oidc"
               echo "DEPLOYER_SA=github-actions-deployer@sunabalog-dev.iam.gserviceaccount.com"
               echo "DATABASE_URL_SECRET=supabase-database-url-dev"
@@ -197,7 +197,7 @@ jobs:
         if: always()
         with:
           webhook: ${{ secrets.DISCORD_ACTIONS_WEBHOOK_URL }}
-          title: "podcast-ui deploy (${{ env.ENVIRONMENT }})"
+          title: "${{ env.SERVICE }} deploy (${{ env.ENVIRONMENT }})"
           description: "${{ env.APP_URL }}"
           username: GitHub Actions
 
