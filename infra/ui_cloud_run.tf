@@ -129,7 +129,12 @@ resource "google_cloud_run_v2_service_iam_member" "public" {
   role     = "roles/run.invoker"
   member   = "allUsers"
 
-  depends_on = [google_org_policy_policy.allowed_policy_member_domains]
+  # allUsers への binding 操作には run.services.setIamPolicy が必要なため、
+  # 共有デプロイ SA への付与（ui_github_actions.tf）を先に済ませる。
+  depends_on = [
+    google_org_policy_policy.allowed_policy_member_domains,
+    google_project_iam_member.shared_deployer_run_admin,
+  ]
 }
 
 output "cloud_run_uri" {
