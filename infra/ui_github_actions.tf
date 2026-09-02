@@ -27,3 +27,14 @@ resource "google_project_iam_member" "shared_deployer_run_admin" {
   role    = "roles/run.admin"
   member  = "serviceAccount:github-actions-deployer@${var.project_id}.iam.gserviceaccount.com"
 }
+
+# 同様に、アプリ実行 SA の IAM ポリシー（act-as / signBlob）を Terraform で管理するには
+# iam.serviceAccounts.setIamPolicy が要る。これも editor には含まれない。
+# SA を改名すると上の act-as と ui_secrets.tf の signBlob を貼り直すことになり、
+# 権限が無いと 403 で失敗する（#72 Stage 8 で実際に発生）。
+# setIamPolicy / getIamPolicy だけを持つ最小のロールを付与する。
+resource "google_project_iam_member" "shared_deployer_sa_iam_admin" {
+  project = var.project_id
+  role    = "roles/iam.serviceAccountIamAdmin"
+  member  = "serviceAccount:github-actions-deployer@${var.project_id}.iam.gserviceaccount.com"
+}
