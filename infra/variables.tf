@@ -280,6 +280,12 @@ variable "backup_retention_days" {
   }
 }
 
+variable "backup_bucket_force_destroy" {
+  type        = bool
+  default     = false
+  description = "DB バックアップ用 GCS バケットの force_destroy。#72 のリネームでバケットを作り直す環境だけ true にする（prod は false のままダンプを rsync で移送すること）。"
+}
+
 variable "backup_scheduler_cron" {
   type        = string
   description = "Cron schedule (Asia/Tokyo) for the daily DB backup job."
