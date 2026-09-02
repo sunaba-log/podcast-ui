@@ -10,7 +10,11 @@
 # - Cloud Scheduler から日次起動
 
 resource "google_storage_bucket" "db_backup" {
-  name     = lower("${local.automator_name_prefix}-db-backup-${var.environment}")
+  # #72 Stage 6 の 2 段階 apply 用。force_destroy は destroy 時に state 側の値が
+  # 使われるため、「true 化」と「改名」を同一 apply で行うと destroy が失敗する。
+  # 1 回目: override で旧名に固定したまま force_destroy を true に更新（in-place）
+  # 2 回目: override を外して改名（replace が通る）
+  name     = coalesce(var.backup_bucket_name_override, lower("${local.automator_name_prefix}-db-backup-${var.environment}"))
   location = var.region
 
   uniform_bucket_level_access = true
