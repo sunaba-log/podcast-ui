@@ -35,6 +35,11 @@ on:
         options:
           - plan
           - apply
+      deploy_ui:
+        description: "ui: イメージを再ビルドして Cloud Run へデプロイする"
+        required: false
+        default: false
+        type: boolean
 
 concurrency:
   group: cd-${{ github.ref_name }}
@@ -78,15 +83,26 @@ jobs:
               - 'infra/**'
               - 'apps/automator/**'
 
-  # ui のビルド・デプロイ（push 時・ui 変更時のみ）
+  # ui のビルド・デプロイ。push で apps/ui/** が変わったとき、または
+  # workflow_dispatch で deploy_ui = true を指定したとき。
+  # 手動起動を用意しているのは、コード変更なしにイメージを再ビルド・再配信したい
+  # ケースがあるため（Artifact Registry を作り直してイメージが消えた等）。
   ui:
     needs: changes
-    if: github.event_name == 'push' && needs.changes.outputs.ui == 'true'
+    if: |
+      (github.event_name == 'push' && needs.changes.outputs.ui == 'true') ||
+      (github.event_name == 'workflow_dispatch' && inputs.deploy_ui)
     runs-on: ubuntu-latest
     steps:
       - name: Resolve environment
         run: |
-          if [[ "${GITHUB_REF}" == "refs/heads/main" ]]; then
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            REF="refs/heads/${{ inputs.target_branch }}"
+          else
+            REF="${GITHUB_REF}"
+          fi
+          echo "TARGET_REF=$REF" >> "$GITHUB_ENV"
+          if [[ "$REF" == "refs/heads/main" ]]; then
             {
               echo "ENVIRONMENT=prod"
               echo "PROJECT_ID=sunabalog-prod"
@@ -119,6 +135,8 @@ jobs:
           fi
 
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TARGET_REF }}
 
       - uses: google-github-actions/auth@v2
         with:
