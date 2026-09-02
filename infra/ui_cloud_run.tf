@@ -104,7 +104,14 @@ resource "google_cloud_run_v2_service" "sparkcast_ui" {
   # 不要な PATCH（リビジョン運用と競合し得る）を避けるため無視する。
   lifecycle {
     ignore_changes = [
-      template[0].containers[0].image,
+      # ⚠️ #72 Stage 7 のあいだだけ template[0].containers[0].image も外している。
+      # Artifact Registry を作り直した結果、state が持つイメージ
+      # （.../podcast-ui/podcast-ui:<sha>）が実在しなくなり、ignore したまま TF が
+      # それを再送して "Image not found" で更新に失敗した。外すと上のプレースホルダ
+      # （cloudrun/container/hello）が適用され、サービス定義を収束させられる。
+      # 実イメージは CD の gcloud run deploy が配信するので、改名完了後に必ず戻すこと。
+      # 戻し忘れると infra apply のたびにアプリがプレースホルダへ巻き戻る。
+      # template[0].containers[0].image,
       # ⚠️ #72 Stage 7 の 2 段階 apply のあいだだけ template[0].revision を外している。
       # ignore_changes に入れておくと gcloud が付けたリビジョン名が state に取り込まれ、
       # TF が env を変更する際に「同名リビジョンを別 config で再送」して 409 になる
