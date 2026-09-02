@@ -5,9 +5,13 @@ project_id        = "sunabalog-dev"
 gcs_force_destroy = true
 # #72 Stage 6: バケット改名で作り直すため dev のみ true（ダンプは開発データ）
 backup_bucket_force_destroy = true
+# #72 Stage 6 の 2 段階 apply。まず旧名のまま force_destroy を true にする。
+# この apply が通ったら次の PR でこの行を削除して改名する。
+backup_bucket_name_override = "podcast-automator-db-backup-dev"
 
-# 実リソース名の接頭辞（#72）。ui 系は別 PR で切り替える。
+# 実リソース名の接頭辞（#72）
 automator_name_prefix = "sparkcast-automator"
+ui_name_prefix        = "sparkcast-ui"
 gcs_retention_days    = 3
 gcs_cors_origins = [
   "http://localhost:3000",

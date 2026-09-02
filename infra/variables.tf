@@ -280,6 +280,12 @@ variable "backup_retention_days" {
   }
 }
 
+variable "backup_bucket_name_override" {
+  type        = string
+  default     = null
+  description = "DB バックアップ用 GCS バケット名の一時的な固定値（#72 Stage 6 の 2 段階 apply 用）。通常は null。"
+}
+
 variable "backup_bucket_force_destroy" {
   type        = bool
   default     = false
