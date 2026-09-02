@@ -59,6 +59,14 @@ jobs:
       - uses: dorny/paths-filter@v3
         id: filter
         with:
+          # base 未指定だと「リポジトリ既定ブランチ(main)との全差分」が比較対象になり、
+          # develop への push では main に先行している全コミットが含まれてフィルタが
+          # 実質無効化される（#127）。push されたブランチと同じ ref を渡すと
+          # 「push 直前のコミットとの比較」になる。
+          # workflow_dispatch では空文字＝既定動作に委ねる（infra ジョブは
+          # github.event_name == 'workflow_dispatch' で短絡評価され、ui ジョブは
+          # push を要求するため、dispatch 時にこの結果は使われない）。
+          base: ${{ github.event_name == 'push' && github.ref_name || '' }}
           filters: |
             ui:
               - 'apps/ui/**'
