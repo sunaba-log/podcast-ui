@@ -19,8 +19,8 @@ concurrency:
 env:
   PROJECT_ID: sunabalog-dev
   REGION: asia-northeast1
-  SERVICE: podcast-ui-dev
-  IMAGE: asia-northeast1-docker.pkg.dev/sunabalog-dev/podcast-ui/podcast-ui
+  SERVICE: sparkcast-ui-dev
+  IMAGE: asia-northeast1-docker.pkg.dev/sunabalog-dev/sparkcast-ui/sparkcast-ui
   WORKLOAD_IDENTITY_PROVIDER: projects/452347646684/locations/global/workloadIdentityPools/github-actions/providers/github-oidc
   DEPLOYER_SA: github-actions-deployer@sunabalog-dev.iam.gserviceaccount.com
   DATABASE_URL_SECRET: supabase-database-url-dev
