@@ -15,7 +15,9 @@ resource "google_storage_bucket" "db_backup" {
 
   uniform_bucket_level_access = true
   # バックアップ保護のため誤削除を防ぐ（中身があると destroy できない）。
-  force_destroy = false
+  # 既定は false。#72 のリネームでバケットを作り直す環境だけ true にする
+  # （dev のダンプは開発データのため破棄可。prod は false のまま rsync で移送する）。
+  force_destroy = var.backup_bucket_force_destroy
 
   lifecycle_rule {
     condition {

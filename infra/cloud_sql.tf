@@ -1,8 +1,9 @@
-# ⚠️ Cloud SQL は #90 Stage 5 で撤去予定のため、#72 の名前接頭辞の切替対象から外している。
-# local.automator_name_prefix ではなく var.system を直接使うことで、接頭辞を切り替えても
-# インスタンスが再作成（＝データ喪失）されないようにしている。
+# ⚠️ Cloud SQL は #90 Stage 5 で撤去予定のため、#72 のリネーム対象から外している。
+# 名前は現行値をリテラルで固定する。var.system も local.automator_name_prefix も
+# 参照しないのは、どちらを切り替えてもインスタンスが再作成（＝データ喪失）される
+# ためで、#90 のロールバック先としても残しておく必要があるから。
 resource "google_sql_database_instance" "podcast" {
-  name             = "${var.system}-postgres-${var.environment}"
+  name             = "podcast-automator-postgres-${var.environment}"
   database_version = "POSTGRES_17"
   region           = var.region
   project          = var.project_id
@@ -53,7 +54,9 @@ resource "google_sql_user" "podcast" {
 # 参照先は var.database_url_secret_name（環境別 tfvars）。ここでは生成しない。
 
 resource "google_secret_manager_secret" "database_password" {
-  secret_id = "${var.system}-database-password-${var.environment}"
+  # 同上。prod の live サービスがこのシークレットを参照しているため、
+  # ラベル用の var.system の変更で作り直されないよう名前をリテラル固定する。
+  secret_id = "podcast-automator-database-password-${var.environment}"
   project   = var.project_id
 
   replication {

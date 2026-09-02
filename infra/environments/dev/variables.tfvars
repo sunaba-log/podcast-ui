@@ -1,8 +1,14 @@
-environment        = "dev"
-system             = "podcast-automator"
-project_id         = "sunabalog-dev"
-gcs_force_destroy  = true
-gcs_retention_days = 3
+environment = "dev"
+# provider の default_labels 用のシステム名（実リソース名の接頭辞ではない）。#72 Stage 1
+system            = "sparkcast"
+project_id        = "sunabalog-dev"
+gcs_force_destroy = true
+# #72 Stage 6: バケット改名で作り直すため dev のみ true（ダンプは開発データ）
+backup_bucket_force_destroy = true
+
+# 実リソース名の接頭辞（#72）。ui 系は別 PR で切り替える。
+automator_name_prefix = "sparkcast-automator"
+gcs_retention_days    = 3
 gcs_cors_origins = [
   "http://localhost:3000",
   "http://localhost:3002",
