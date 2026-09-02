@@ -19,6 +19,12 @@ resource "google_cloud_run_v2_service" "sparkcast_ui" {
   name     = "${local.ui_name_prefix}-${var.environment}"
   ingress  = "INGRESS_TRAFFIC_ALL"
 
+  # provider の既定は true。他の Cloud Run リソース（job.tf / agenda.tf / promoter.tf /
+  # backup.tf / workflows.tf）と同様に false を明示する。true のままだと改名などの
+  # replace が「cannot destroy service without setting deletion_protection=false」で
+  # 失敗する（#72 Stage 7 で実際に発生）。
+  deletion_protection = false
+
   template {
     service_account = google_service_account.app.email
 
