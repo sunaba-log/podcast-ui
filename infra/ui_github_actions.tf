@@ -12,3 +12,18 @@ resource "google_service_account_iam_member" "shared_deployer_act_as_app" {
   role               = "roles/iam.serviceAccountUser"
   member             = "serviceAccount:github-actions-deployer@${var.project_id}.iam.gserviceaccount.com"
 }
+
+# Cloud Run サービスの IAM（allUsers への run.invoker）を Terraform で管理するには
+# run.services.setIamPolicy が必要。共有 SA が持つ editor には含まれないため、
+# サービス改名（#72 Stage 7）で旧サービスからバインディングを外す destroy が
+# 403 で失敗した。Cloud Run の公開設定（ui_cloud_run.tf の
+# google_cloud_run_v2_service_iam_member.public）は本リポジトリの TF が管理して
+# いるので、それを完遂できるだけの権限をここで付与する。
+#
+# 共有 SA の実体は dev-platform/infra が管理するが、このプロジェクト固有の要件で
+# あるため、上の act-as と同様にプロジェクト単位の binding は本リポジトリで持つ。
+resource "google_project_iam_member" "shared_deployer_run_admin" {
+  project = var.project_id
+  role    = "roles/run.admin"
+  member  = "serviceAccount:github-actions-deployer@${var.project_id}.iam.gserviceaccount.com"
+}
