@@ -1,7 +1,9 @@
-# アプリのビルド・デプロイ（Cloud Run）。ブランチで環境を切り替える。
-#   develop → dev（sunabalog-dev） / main → prod（sunabalog-prod）
-# インフラ（Terraform）は CI では回さず、`make terraform-apply ENVIRONMENT=<env>`
-# で手動デプロイする。PR プレビューは pr-preview.yml が担当する。
+# アプリのビルド・デプロイ（Cloud Run）とインフラの apply（Terraform）。
+# ブランチで環境を切り替える: develop → dev（sunabalog-dev） / main → prod（sunabalog-prod）
+#   - ui ジョブ   : apps/ui/** の変更で Cloud Run Service を deploy
+#   - infra ジョブ: infra/** または apps/automator/** の変更で terraform apply
+# ローカルからの手動 apply は `make terraform-deploy-<env>`、
+# PR プレビューは pr-preview.yml が担当する。
 name: cd
 
 on:
@@ -12,7 +14,11 @@ on:
     paths:
       - "apps/ui/**"
       - "apps/automator/**"
+      - "infra/**"
       - ".github/workflows/cd.yml"
+      # 手順書などドキュメントのみの変更で apply を走らせない（#125）。
+      # 除外は後方のパターンが勝つため、必ず positive の後ろに置くこと。
+      - "!infra/docs/**"
   # automator の手動 plan/apply 用（push でも apps/automator/** 変更時に自動デプロイする）
   workflow_dispatch:
     inputs:
@@ -57,6 +63,9 @@ jobs:
             ui:
               - 'apps/ui/**'
               - '.github/workflows/cd.yml'
+            # dorny/paths-filter は各パターンを OR で評価するため '!' は除外にならない
+            # （'!infra/docs/**' が「infra/docs 以外の全ファイル」に一致してしまう）。
+            # ドキュメントのみの変更は上の on.push.paths 側で弾く。
             infra:
               - 'infra/**'
               - 'apps/automator/**'
