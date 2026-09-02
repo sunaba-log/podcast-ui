@@ -6,7 +6,7 @@ module "cloud_run_job" {
   environment                    = var.environment
   system                         = var.system
   image_name                     = "app"
-  docker_context_path            = "${path.module}/../automator/app"
+  docker_context_path            = "${path.module}/../apps/automator/app"
   docker_build_command           = "make docker-build"
   docker_build_result_image_name = "podcast-automator-app:latest"
   job_name                       = "${var.system}-app-${var.environment}"

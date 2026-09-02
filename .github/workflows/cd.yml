@@ -10,10 +10,10 @@ on:
       - develop
       - main
     paths:
-      - "ui/**"
-      - "automator/**"
+      - "apps/ui/**"
+      - "apps/automator/**"
       - ".github/workflows/cd.yml"
-  # automator の手動 plan/apply 用（push でも automator/** 変更時に自動デプロイする）
+  # automator の手動 plan/apply 用（push でも apps/automator/** 変更時に自動デプロイする）
   workflow_dispatch:
     inputs:
       target_branch:
@@ -55,11 +55,11 @@ jobs:
         with:
           filters: |
             ui:
-              - 'ui/**'
+              - 'apps/ui/**'
               - '.github/workflows/cd.yml'
             infra:
               - 'infra/**'
-              - 'automator/**'
+              - 'apps/automator/**'
 
   # ui のビルド・デプロイ（push 時・ui 変更時のみ）
   ui:
@@ -119,7 +119,7 @@ jobs:
         with:
           node-version: "22"
       - name: Run migrations
-        working-directory: ui
+        working-directory: apps/ui
         run: |
           npm ci
           DATABASE_URL="$(gcloud secrets versions access latest --secret="$DATABASE_URL_SECRET" --project="$PROJECT_ID")"
@@ -129,7 +129,7 @@ jobs:
           npm run db:migrate
 
       - name: Build image
-        working-directory: ui
+        working-directory: apps/ui
         run: |
           docker build \
             --build-arg NEXT_PUBLIC_FIREBASE_API_KEY="$NEXT_PUBLIC_FIREBASE_API_KEY" \
@@ -166,9 +166,9 @@ jobs:
           description: "${{ env.APP_URL }}"
           username: GitHub Actions
 
-  # Terraform デプロイ（push で infra/** または automator/** 変更時、または手動 dispatch）。
+  # Terraform デプロイ（push で infra/** または apps/automator/** 変更時、または手動 dispatch）。
   # 統合後の単一 infra/ を apply する（ui の Cloud Run 基盤 + automator の Job/GCS/SQL 等）。
-  # automator/** も対象にするのは app イメージ変更時に local-exec の再ビルド・push が要るため。
+  # apps/automator/** も対象にするのは app イメージ変更時に local-exec の再ビルド・push が要るため。
   # 認証は WIF（キーレス）。共有 SA github-actions-deployer を impersonate する。
   infra:
     needs: changes

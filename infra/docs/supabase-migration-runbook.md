@@ -39,7 +39,7 @@ Cloud SQL（PostgreSQL・常時課金 月約 $27）を廃止し、Supabase 無�
 - 完全 DATABASE_URL（percent-encode 済み）を Secret Manager `supabase-database-url-dev` に格納・接続実証。
 
 ### 重要な技術的発見：node-pg の SSL（UI）
-UI の `ui/src/server/db-pool.ts` は `CLOUD_SQL_INSTANCE_CONNECTION_NAME` 未設定時に `DATABASE_URL` へフォールバックするが、**`new Pool({ connectionString })` 直渡しは Supabase プーラーで失敗**する。実測:
+UI の `apps/ui/src/server/db-pool.ts` は `CLOUD_SQL_INSTANCE_CONNECTION_NAME` 未設定時に `DATABASE_URL` へフォールバックするが、**`new Pool({ connectionString })` 直渡しは Supabase プーラーで失敗**する。実測:
 
 | 方式 | 結果 |
 | --- | --- |
@@ -50,7 +50,7 @@ UI の `ui/src/server/db-pool.ts` は `CLOUD_SQL_INSTANCE_CONNECTION_NAME` 未�
 → `db-pool.ts` の DATABASE_URL 経路を **URL をパースして host/port/user/password/database に分解し、非ローカルは `ssl:{rejectUnauthorized:false}` を付与**する実装に変更。automator（psycopg/libpq）は URL の `sslmode=require` のままで可（psql で実証）。
 
 ### Stage 2（dev 切替）— 結果 ✅（PR #113）
-変更6ファイル: `ui/src/server/db-pool.ts`（SSL）/ `infra/ui_cloud_run.tf`（DB env → `DATABASE_URL` secret）/ `infra/ui_secrets.tf`（アプリSAへ secret accessor 付与）/ `infra/cloud_sql.tf`（DATABASE_URL secret の TF 生成を廃止＝値は手動管理）/ `infra/job.tf`（廃止 secret への depends_on 除去）/ `infra/environments/dev/variables.tfvars`（`database_url_secret_name = supabase-database-url-dev`）。automator の secret アクセスは `iam.tf` の**プロジェクト全体の secretAccessor**で充足済み。
+変更6ファイル: `apps/ui/src/server/db-pool.ts`（SSL）/ `infra/ui_cloud_run.tf`（DB env → `DATABASE_URL` secret）/ `infra/ui_secrets.tf`（アプリSAへ secret accessor 付与）/ `infra/cloud_sql.tf`（DATABASE_URL secret の TF 生成を廃止＝値は手動管理）/ `infra/job.tf`（廃止 secret への depends_on 除去）/ `infra/environments/dev/variables.tfvars`（`database_url_secret_name = supabase-database-url-dev`）。automator の secret アクセスは `iam.tf` の**プロジェクト全体の secretAccessor**で充足済み。
 
 **検証**: dev UI でログイン→チャンネル/エピソード（概要文まで）表示、`/episodes` が HTTP 200、DB/SSL エラーログなし。automator も Supabase secret を参照。
 
@@ -76,7 +76,7 @@ UI の `ui/src/server/db-pool.ts` は `CLOUD_SQL_INSTANCE_CONNECTION_NAME` 未�
 | 参照元 | DB への繋ぎ方 | 認証情報の出どころ |
 | --- | --- | --- |
 | **automator**（Cloud Run Job / Python・psycopg） | `DATABASE_URL` 環境変数（ソケット式） | Secret Manager `DATABASE_URL`（**Terraform が cloud_sql.tf で値まで生成**） |
-| **UI**（Cloud Run Service / TS・pg） | `@google-cloud/cloud-sql-connector` 経由。ただし **`CLOUD_SQL_INSTANCE_CONNECTION_NAME` が無ければ `DATABASE_URL` に自動フォールバック**（`ui/src/server/db-pool.ts`） | DB パスワード Secret（dev=`db-password` / prod=`podcast-automator-database-password-prod`）。UI 側は **CD の gcloud deploy で env 注入**（TF 管理外） |
+| **UI**（Cloud Run Service / TS・pg） | `@google-cloud/cloud-sql-connector` 経由。ただし **`CLOUD_SQL_INSTANCE_CONNECTION_NAME` が無ければ `DATABASE_URL` に自動フォールバック**（`apps/ui/src/server/db-pool.ts`） | DB パスワード Secret（dev=`db-password` / prod=`podcast-automator-database-password-prod`）。UI 側は **CD の gcloud deploy で env 注入**（TF 管理外） |
 | **UI マイグレーション** | CD の `npm run db:migrate`（connector 経由） | 同上（CD が env 注入） |
 
 ### 重要な技術ポイント（ここが移行の勘所）

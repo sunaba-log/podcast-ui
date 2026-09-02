@@ -9,7 +9,7 @@ on:
     branches:
       - develop
     paths:
-      - "ui/**"
+      - "apps/ui/**"
       - ".github/workflows/pr-preview.yml"
 
 concurrency:
@@ -61,7 +61,7 @@ jobs:
         with:
           node-version: "22"
       - name: Run migrations
-        working-directory: ui
+        working-directory: apps/ui
         run: |
           npm ci
           DATABASE_URL="$(gcloud secrets versions access latest --secret="$DATABASE_URL_SECRET" --project="$PROJECT_ID")"
@@ -71,7 +71,7 @@ jobs:
           npm run db:migrate
 
       - name: Build image
-        working-directory: ui
+        working-directory: apps/ui
         run: |
           docker build \
             --build-arg NEXT_PUBLIC_FIREBASE_API_KEY="$NEXT_PUBLIC_FIREBASE_API_KEY" \

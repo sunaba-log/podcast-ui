@@ -31,7 +31,7 @@ resource "google_secret_manager_secret_iam_member" "app_secrets" {
   member    = "serviceAccount:${google_service_account.app.email}"
 }
 
-# CD / PR プレビューの DB マイグレーション（ui/scripts/migrate.ts）は
+# CD / PR プレビューの DB マイグレーション（apps/ui/scripts/migrate.ts）は
 # github-actions-deployer が DATABASE_URL を読んで実行する（#120）。
 # 同 SA 自体は dev-platform/infra 管理のため、ここでは secret への参照権限のみ付与する。
 resource "google_secret_manager_secret_iam_member" "deployer_database_url" {
