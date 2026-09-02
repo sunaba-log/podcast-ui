@@ -10,7 +10,24 @@ variable "environment" {
 
 variable "system" {
   type        = string
-  description = "System name for default labels."
+  description = "System name for default labels（provider の default_labels 用）。実リソース名の接頭辞は automator_name_prefix / ui_name_prefix を使う（#72）。"
+}
+
+# --- 実リソース名の接頭辞（#72: podcast-* → sparkcast-* の段階移行） ---
+# 未指定なら現行名を維持するため、tfvars を触らない限り plan は no-change。
+# 切替は「安いもの（データを持たない）」→「データを持つもの」の順に段階実施する。
+# 手順・検証・ロールバックは infra/docs/sparkcast-rename-runbook.md を参照。
+
+variable "automator_name_prefix" {
+  type        = string
+  default     = "podcast-automator"
+  description = "automator 系リソース名の接頭辞（GCS / Cloud Run Job / Scheduler / Workflows / Eventarc / Artifact Registry）。var.system とは独立（ラベル変更が名前に波及しないようにするため）。"
+}
+
+variable "ui_name_prefix" {
+  type        = string
+  default     = "podcast-ui"
+  description = "ui 系リソース名の接頭辞（Cloud Run Service / Artifact Registry / Scheduler）。"
 }
 
 variable "org" {

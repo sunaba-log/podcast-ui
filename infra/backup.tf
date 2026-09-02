@@ -10,7 +10,7 @@
 # - Cloud Scheduler から日次起動
 
 resource "google_storage_bucket" "db_backup" {
-  name     = lower("${var.system}-db-backup-${var.environment}")
+  name     = lower("${local.automator_name_prefix}-db-backup-${var.environment}")
   location = var.region
 
   uniform_bucket_level_access = true
@@ -35,7 +35,7 @@ resource "google_storage_bucket_iam_member" "db_backup_writer" {
 }
 
 resource "google_cloud_run_v2_job" "db_backup" {
-  name                = "${var.system}-db-backup-${var.environment}"
+  name                = "${local.automator_name_prefix}-db-backup-${var.environment}"
   location            = var.region
   deletion_protection = false
 
@@ -90,7 +90,7 @@ resource "google_cloud_run_v2_job" "db_backup" {
 
 # Cloud Scheduler: 日次（デフォルト 03:00 JST）
 resource "google_cloud_scheduler_job" "db_backup" {
-  name             = "${var.system}-db-backup-${var.environment}"
+  name             = "${local.automator_name_prefix}-db-backup-${var.environment}"
   description      = "Daily pg_dump of the database to GCS"
   schedule         = var.backup_scheduler_cron
   time_zone        = "Asia/Tokyo"

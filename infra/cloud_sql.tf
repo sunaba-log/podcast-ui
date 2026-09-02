@@ -1,3 +1,6 @@
+# ⚠️ Cloud SQL は #90 Stage 5 で撤去予定のため、#72 の名前接頭辞の切替対象から外している。
+# local.automator_name_prefix ではなく var.system を直接使うことで、接頭辞を切り替えても
+# インスタンスが再作成（＝データ喪失）されないようにしている。
 resource "google_sql_database_instance" "podcast" {
   name             = "${var.system}-postgres-${var.environment}"
   database_version = "POSTGRES_17"
