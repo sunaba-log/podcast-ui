@@ -105,7 +105,12 @@ resource "google_cloud_run_v2_service" "sparkcast_ui" {
   lifecycle {
     ignore_changes = [
       template[0].containers[0].image,
-      template[0].revision,
+      # ⚠️ #72 Stage 7 の 2 段階 apply のあいだだけ template[0].revision を外している。
+      # ignore_changes に入れておくと gcloud が付けたリビジョン名が state に取り込まれ、
+      # TF が env を変更する際に「同名リビジョンを別 config で再送」して 409 になる
+      # （#90 Stage 2 と同じ罠）。外すと revision は空＝Cloud Run が自動採番するため衝突しない。
+      # サービス改名が完了したら元に戻すこと。
+      # template[0].revision,
       template[0].labels,
       template[0].annotations,
       # default_labels によるサービスラベル更新を抑止（gcloud 管理サービスへの不要 PATCH 回避）。
