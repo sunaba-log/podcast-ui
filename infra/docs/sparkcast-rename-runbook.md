@@ -1,25 +1,131 @@
 # sparkcast リネーム 手順書（Issue #72）
 
-> **進捗サマリ**
+> **進捗サマリ（2026-09-03 更新）**
 >
-> | Stage | 内容 | 破壊性 | 状態 |
-> | --- | --- | --- | --- |
-> | 0 | 命名の変数化（名前とラベルの分離） | 非破壊 | ✅ 完了（本 PR） |
-> | 1 | ラベル `system` を sparkcast へ | 非破壊（in-place） | ⬜ 未着手 |
-> | 2 | Cloud Scheduler（ui / automator） | 再作成（数秒） | ⬜ 未着手 |
-> | 3 | Cloud Run Job / Workflows / Eventarc | 再作成（数分・処理断） | ⬜ 未着手 |
-> | 4 | Artifact Registry（ui / automator） | 再作成＋イメージ再 push | ⬜ 未着手 |
-> | 5 | GCS 入力バケット | 再作成（**データ移行不要**・下記根拠） | ⬜ 未着手 |
-> | 6 | GCS バックアップバケット | 再作成＋ダンプ移行 | ⬜ 未着手 |
-> | 7 | Cloud Run Service（ui） | 再作成＋**カスタムドメイン断** | ⬜ 未着手 |
-> | 8 | アプリ実行 SA（ui） | 再作成＋IAM 全付け替え | ⬜ 未着手 |
+> | Stage | 内容 | 破壊性 | dev | prod |
+> | --- | --- | --- | --- | --- |
+> | 0 | 命名の変数化（名前とラベルの分離） | 非破壊 | ✅ | ✅（共通コード） |
+> | 1 | ラベル `system` を sparkcast へ | 非破壊（in-place） | ✅ | ⬜ |
+> | 2 | Cloud Scheduler（ui / automator） | 再作成（数秒） | ✅ | ⬜ |
+> | 3 | Cloud Run Job / Workflows / Eventarc | 再作成（数分・処理断） | ✅ | ⬜ |
+> | 4 | Artifact Registry（ui / automator） | 再作成＋イメージ再 push | ✅ | ⬜ |
+> | 5 | GCS 入力バケット | 再作成（**データ移行不要**・下記根拠） | ✅ | ⬜ |
+> | 6 | GCS バックアップバケット | 再作成＋ダンプ移行 | ✅ | ⬜ |
+> | 7 | Cloud Run Service（ui） | 再作成＋**カスタムドメイン断** | ✅ | ⬜ |
+> | 8 | アプリ実行 SA（ui） | 再作成＋IAM 全付け替え | ✅ | ⬜ |
 >
-> **Stage 4 までで「見た目の一貫性」の大半が得られ、データ・公開 URL への影響はゼロ。**
-> Stage 7・8 は**本番のダウンタイムと IAM 付け替え**を伴うため、実施是非を都度判断する。
+> **dev は全 Stage 完了。prod は未着手。**
+> prod を実施する前に、必ず下記「[dev で踏んだ落とし穴](#dev-で踏んだ落とし穴prod-実施前に必読)」を読むこと。
+> dev では 10 回以上 apply に失敗しており、**素直に tfvars を書き換えるだけでは通らない**。
 
 Cloud SQL 系（`podcast-automator-postgres-*` / `podcast-automator-database-password-*`）は
 **#90 Stage 5 で撤去予定**のため本手順の対象外。`infra/cloud_sql.tf` は名前接頭辞の
 切替に巻き込まれないよう、意図的に `var.system` を直接参照したままにしてある。
+
+---
+
+---
+
+## dev で踏んだ落とし穴（prod 実施前に必読）
+
+dev の実施で判明した、手順書の初版に書かれていなかった制約。**いずれも prod でも同じように起きる。**
+
+### 1. `editor` ロールには `setIamPolicy` 系が含まれない
+
+共有デプロイ SA（`github-actions-deployer@`）は `editor` を持つが、**リソースの IAM ポリシー設定権限は editor から除外されている**。そのため以下がすべて 403 で失敗した。
+
+| 失敗した操作 | 不足していた権限 | 付与したロール |
+| --- | --- | --- |
+| Cloud Run Service 改名時の `allUsers` バインディング貼り直し | `run.services.setIamPolicy` | `roles/run.admin` |
+| アプリ実行 SA 改名時の act-as / signBlob 貼り直し | `iam.serviceAccounts.setIamPolicy` | `roles/iam.serviceAccountAdmin` |
+
+どちらも `infra/ui_github_actions.tf` で付与済み。**prod でも同じ付与が必要**（同ファイルは環境共通なので、prod への apply 時に自動で入る）。
+
+⚠️ `roles/iam.serviceAccountIamAdmin`（より狭い）は**プロジェクトへの付与が拒否される**（`Error 400: Role ... is not supported for this resource`）。
+
+### 2. 権限付与は「失敗する destroy」と同じ plan では作成されない
+
+Terraform は destroy がエラーになった時点で**新しい操作のスケジュールを止める**。そのため「権限が無くて失敗する destroy」と「その権限を付与するリソース」を同じ apply に入れても、**付与は永久に作成されない**。dev では 4 回連続で同じ 403 を踏んだ。
+
+**必ず 2 段階に分ける。**
+
+1. 改名を一旦戻す（＝失敗する destroy を plan から消す）＋ 権限付与だけを入れて apply
+2. 改名を再投入して apply
+
+⚠️ `depends_on` で順序を付けるのは**逆効果**。付与の create が失敗する destroy と同じ依存鎖に載り、かえって実行されなくなる。
+
+### 3. `force_destroy` / `deletion_protection` は destroy 時に *state 側の値* が読まれる
+
+「`false` にする」と「改名する」を同一 apply で行うと、**destroy が古い値のまま実行されて失敗する**。
+
+```
+Error: Error trying to delete bucket ... without `force_destroy` set to true
+Error: cannot destroy service without setting deletion_protection=false
+```
+
+**必ず 2 段階に分ける。** 1 回目は旧名のまま値だけ更新（in-place）、2 回目に改名（replace）。
+バックアップバケットには `backup_bucket_name_override` を用意してあるので、1 段階目でこれに旧名を入れる。
+
+### 4. Artifact Registry を作り直すと中のイメージが消える
+
+`template[0].containers[0].image` は `ignore_changes` に入っているため、**TF が state に残る実在しないイメージを再送して `Image not found` で失敗する**。
+
+一時的に `image` を `ignore_changes` から外し、プレースホルダ（`cloudrun/container/hello`）へ収束させてから改名する。**改名完了後に必ず戻すこと**（戻し忘れると infra apply のたびにアプリがプレースホルダへ巻き戻る）。
+
+### 5. `template[0].revision` の ignore が 409 を生む
+
+TF が template（env / service_account）を変更する際、`ignore_changes` に入れた `revision` の値（gcloud が付けた名前）を state から拾って**別 config で再送**するため 409 になる。
+
+```
+Error 409: Revision named 'podcast-ui-dev-sha-...' with different configuration already exists.
+```
+
+TF 側から template を変更する Stage（1・8 など）では、**一時的に `revision` を `ignore_changes` から外す**。外すと Cloud Run が自動採番するので衝突しない。完了後に戻す。
+
+### 6. Cloud Run のドメインマッピングは CI から作成できない
+
+マッピングの作成には **Google Search Console でのドメイン所有権**が必要で、共有デプロイ SA は `sunabalog.com` の確認済み所有者ではない。
+
+```
+Error: Caller is not authorized to administer the domain ...
+```
+
+replace の順序上、マッピングの create は**サービス作成の後**に来るため、**改名自体は完了したうえでマッピングだけが失敗する**。所有権を持つアカウントのトークンでターゲット apply して復旧する。
+
+```sh
+export GOOGLE_OAUTH_ACCESS_TOKEN="$(gcloud auth print-access-token --account=admin@sunabalog.com)"
+terraform -chdir=infra apply -input=false \
+  -var-file=environments/<env>/variables.tfvars \
+  -target=google_cloud_run_domain_mapping.app
+```
+
+**恒久対策**: Search Console で `github-actions-deployer@<project>.iam.gserviceaccount.com` を `sunabalog.com` の所有者に追加すれば、この手動ステップは不要になる。
+
+### 7. トラフィックのピン留めで旧リビジョンが残り続ける
+
+`cd.yml` は `--no-traffic` + `update-traffic --to-revisions <suffix>=100` で**特定リビジョンにトラフィックを固定**する。TF が新しいリビジョンを作っても（`traffic` は `ignore_changes`）**トラフィックは移らない**。
+
+Stage 8 で SA を改名した直後、トラフィックが旧 SA を使う旧リビジョンに固定されたままで、**旧 SA 削除により全リクエストが 500** になった（アプリログは出ず `latency: 0s` の 500 だけが残る）。
+
+**TF がサービスの template を変更する Stage の後は、必ず ui デプロイでトラフィックを新リビジョンへ寄せること。**
+
+```sh
+gh workflow run cd.yml --ref <branch> -f target_branch=<branch> -f deploy_mode=plan -f deploy_ui=true
+```
+
+### 8. `var.system` はラベル専用にしてある
+
+`var.system` を変えると `infra/cloud_sql.tf` の Cloud SQL インスタンス名まで変わり、**再作成＝データ喪失**になる状態だった。現在は `cloud_sql.tf` の名前をリテラル固定してあるので安全だが、**新しいリソースの名前に `var.system` を使ってはいけない**。実リソース名は `local.automator_name_prefix` / `local.ui_name_prefix` を使う。
+
+### prod 実施時の推奨順序
+
+1. Search Console で deployer SA を `sunabalog.com` の所有者に追加（落とし穴 6 の恒久対策）
+2. Stage 1（ラベル）— `revision` の ignore を一時的に外す
+3. Stage 2〜5（automator 系）— 収録の無い時間帯に
+4. Stage 6 — **先に `gcloud storage rsync` でダンプを移送**してから 2 段階 apply
+5. Stage 7 — `deletion_protection` の 2 段階 apply。`cd.yml` / `pr-preview.yml` の `SERVICE`・`IMAGE` 更新 PR を別途用意
+6. Stage 8 — `revision` の ignore を外す。完了後に ui デプロイでトラフィックを寄せる
+7. `revision` / `image` の `ignore_changes` を戻す
 
 ---
 
