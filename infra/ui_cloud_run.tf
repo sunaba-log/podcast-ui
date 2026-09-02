@@ -121,19 +121,24 @@ resource "google_cloud_run_v2_service" "sparkcast_ui" {
 }
 
 # 管理画面はアプリ側の Firebase Auth で保護するため、HTTP は公開する。
-resource "google_cloud_run_v2_service_iam_member" "public" {
-  project = var.project_id
-  # ドメイン制限共有の解除（下記 org policy）が先に必要
-  location = google_cloud_run_v2_service.sparkcast_ui.location
-  name     = google_cloud_run_v2_service.sparkcast_ui.name
-  role     = "roles/run.invoker"
-  member   = "allUsers"
+#
+# ⚠️ 一時的に state から切り離している（#72 Stage 7）。
+#
+# サービス改名は allUsers バインディングの replace を伴うが、旧サービスからの
+# destroy に必要な run.services.setIamPolicy を共有デプロイ SA が持っていなかった。
+# 権限付与（ui_github_actions.tf の shared_deployer_run_admin）を同じ plan に入れても、
+# Terraform は destroy の 403 で新しい操作のスケジュールを止めるため、付与の create まで
+# 到達せず永久に解消しない状態だった。
+#
+# そこで removed ブロックで「API を呼ばずに state から外す」ことで失敗する destroy を
+# plan から消し、権限付与とサービス改名を通す。旧バインディングは旧サービスごと削除される。
+# 次の PR でこの removed を消してリソース定義を復活させ、新サービスに付与し直す。
+removed {
+  from = google_cloud_run_v2_service_iam_member.public
 
-  # ⚠️ ここに google_project_iam_member.shared_deployer_run_admin への depends_on を
-  # 足してはいけない。旧バインディングの destroy が権限付与の後ろに直列化されず、
-  # むしろ付与の create が失敗した destroy に引きずられて実行されなくなる（#72 で実際に発生）。
-  # 付与は独立したリソースとして先に作らせ、IAM 伝播後の再 apply で destroy を通す。
-  depends_on = [google_org_policy_policy.allowed_policy_member_domains]
+  lifecycle {
+    destroy = false
+  }
 }
 
 output "cloud_run_uri" {
