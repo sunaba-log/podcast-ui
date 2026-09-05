@@ -28,7 +28,6 @@ r2_bucket_name                     = "podcast"
 r2_subdomain                       = "podcast"
 podcast_id                         = "1"
 database_url_secret_name           = "supabase-database-url-prod"
-cloud_sql_tier                     = "db-f1-micro"
 enable_promoter                    = true
 manage_firestore_database          = true
 budget_amount_jpy                  = 10000
@@ -39,5 +38,3 @@ budget_amount_jpy                  = 10000
 app_service_account_id           = "sparkcast-ui-prod"
 app_service_account_display_name = "SparkCast UI prod"
 custom_domain                    = "sparkcast.sunabalog.com"
-# prod の live サービスは automator と共有の既存シークレットを参照している
-db_password_secret_id = "podcast-automator-database-password-prod"
