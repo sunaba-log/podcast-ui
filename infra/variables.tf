@@ -145,30 +145,6 @@ variable "database_url_secret_name" {
   description = "Secret Manager secret containing the PostgreSQL DATABASE_URL."
 }
 
-variable "cloud_sql_tier" {
-  type        = string
-  description = "Cloud SQL machine tier."
-  default     = "db-f1-micro"
-}
-
-variable "cloud_sql_availability_type" {
-  type        = string
-  description = "Cloud SQL availability type (ZONAL or REGIONAL/HA). Shared-core tiers (db-f1-micro) are not compatible with REGIONAL."
-  default     = "ZONAL"
-}
-
-variable "cloud_sql_database_name" {
-  type        = string
-  description = "PostgreSQL database name."
-  default     = "podcast"
-}
-
-variable "cloud_sql_database_user" {
-  type        = string
-  description = "PostgreSQL application user."
-  default     = "podcast_app"
-}
-
 variable "sns_schedule_offset_hours" {
   type        = number
   description = "Hours after episode processing to schedule the first SNS promotion. Default 1 hour."
@@ -218,9 +194,10 @@ variable "promoter_scheduler_cron" {
 }
 
 # ---------------------------------------------------------------------------
-# podcast-ui（旧 ui/infra）由来の変数。Cloud Run Service まわり。
-# upload_bucket / cloud_sql_instance_connection_name / db_password_secret_id /
-# db_name / db_user は同一 state 内のリソース直接参照に置換したため変数から削除した。
+# sparkcast-ui（Cloud Run Service）まわりの変数。
+# DB 接続系の変数（cloud_sql_* / db_password_secret_id / db_name / db_user）は
+# Supabase 移行と Cloud SQL 撤去（#90）で不要になったため削除済み。
+# アプリは DATABASE_URL（var.database_url_secret_name）だけで接続する。
 # ---------------------------------------------------------------------------
 variable "app_service_account_id" {
   type        = string
@@ -242,12 +219,6 @@ variable "cron_secret_id" {
 # TF が template（env）を変更するとリビジョン名衝突で失敗する。DB パスワードの
 # 参照シークレットは live と一致させる必要があるため直接参照化せず変数で保持する
 # （dev=db-password / prod=automator 管理シークレット）。
-variable "db_password_secret_id" {
-  type        = string
-  description = "DB 接続パスワードを保持する Secret Manager シークレット ID"
-  default     = "db-password"
-}
-
 variable "custom_domain" {
   type        = string
   description = "Cloud Run に割り当てるカスタムドメイン（例: dev.sparkcast.sunabalog.com）"
