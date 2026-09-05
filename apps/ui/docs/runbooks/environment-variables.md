@@ -14,11 +14,11 @@ injected by the GitHub Actions workflows (`.github/workflows/`).
 
 | Variable | Required | Local source | Deployed source | Notes |
 | --- | --- | --- | --- | --- |
-| `DATABASE_URL` | Optional | Local PostgreSQL connection string | Unset on Cloud Run | Use for a local DB or direct PostgreSQL connection. |
-| `CLOUD_SQL_INSTANCE_CONNECTION_NAME` | Required without `DATABASE_URL` | GCP Cloud SQL instance name | `infra/cloud-run.tf` | Format: `project:region:instance`. |
-| `DB_NAME` | Required without `DATABASE_URL` | `infra/cloud-run.tf` | `infra/cloud-run.tf` | Cloud SQL database name. |
-| `DB_USER` | Required without `DATABASE_URL` | `infra/cloud-run.tf` | `infra/cloud-run.tf` | Cloud SQL database user. |
-| `DB_PASSWORD` | Required without `DATABASE_URL` | GCP Secret Manager | Secret Manager (`db-password`) | Do not paste into docs or chat. |
+| `DATABASE_URL` | Required | Local PostgreSQL connection string | Secret Manager (`supabase-database-url-{dev,prod}`) | Supabase 接続文字列。Cloud Run と CI/CD のマイグレーションはどちらもこれを使う（#90 / #120）。 |
+| `CLOUD_SQL_INSTANCE_CONNECTION_NAME` | Legacy / optional | GCP Cloud SQL instance name | 未設定 | 設定されている場合のみ Cloud SQL Connector 経路になる。Supabase 移行後は通常未設定。 |
+| `DB_NAME` | Legacy / optional | — | 未設定 | `CLOUD_SQL_INSTANCE_CONNECTION_NAME` 使用時のみ。 |
+| `DB_USER` | Legacy / optional | — | 未設定 | `CLOUD_SQL_INSTANCE_CONNECTION_NAME` 使用時のみ。 |
+| `DB_PASSWORD` | Legacy / optional | GCP Secret Manager | 未設定 | `CLOUD_SQL_INSTANCE_CONNECTION_NAME` 使用時のみ。Do not paste into docs or chat. |
 | `GOOGLE_CLOUD_PROJECT` | Required | GCP project ID | `infra/cloud-run.tf` | `sunabalog-dev` or `sunabalog-prod`. |
 | `DEV_ALLOWED_EMAILS` | Optional | team allowlist | `infra/cloud-run.tf`（現在は未設定＝全アカウント許可） | Comma-separated login allowlist. Unset or empty allows all accounts. |
 | `GCS_UPLOAD_BUCKET` | Required | GCS bucket name | `infra/cloud-run.tf` | Dev and prod buckets must not be mixed. |
@@ -74,17 +74,15 @@ injected by the GitHub Actions workflows (`.github/workflows/`).
    ローカルから Firestore / GCS 署名を使う場合のみ、SA 鍵を
    `FIREBASE_SERVICE_ACCOUNT_JSON` に設定する（Cloud Run では不要）。
 
-4. Use either `DATABASE_URL` or the Cloud SQL Connector variables.
+4. Set `DATABASE_URL` to your local PostgreSQL.
 
-   For local PostgreSQL, `DATABASE_URL` is usually simpler. For parity with
-   the deployed environment, use:
+   デプロイ環境（Cloud Run）と CI/CD のマイグレーションはいずれも Supabase の
+   `DATABASE_URL`（Secret Manager `supabase-database-url-{dev,prod}`）を使うため、
+   ローカルでも `DATABASE_URL` を使うのがデプロイ環境と同じ経路になる。
 
-   ```text
-   CLOUD_SQL_INSTANCE_CONNECTION_NAME
-   DB_NAME
-   DB_USER
-   DB_PASSWORD
-   ```
+   `CLOUD_SQL_INSTANCE_CONNECTION_NAME` / `DB_NAME` / `DB_USER` / `DB_PASSWORD` は
+   Cloud SQL Connector 経路のレガシー変数で、設定されている場合のみそちらが優先される。
+   Supabase 移行（#90）後は通常設定しない。
 
 5. Never commit `.env.local`.
 

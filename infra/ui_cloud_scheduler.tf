@@ -8,13 +8,13 @@ data "google_secret_manager_secret_version" "cron_secret" {
 }
 
 locals {
-  app_base_url = google_cloud_run_v2_service.podcast_ui.uri
+  app_base_url = google_cloud_run_v2_service.sparkcast_ui.uri
 }
 
 resource "google_cloud_scheduler_job" "cleanup_uploads" {
   project          = var.project_id
   region           = var.region
-  name             = "podcast-ui-cleanup-uploads"
+  name             = "${local.ui_name_prefix}-cleanup-uploads"
   description      = "Triggers Next.js cleanup-uploads api endpoint"
   schedule         = "0 3 * * *"
   time_zone        = "Asia/Tokyo"
@@ -34,7 +34,7 @@ resource "google_cloud_scheduler_job" "cleanup_uploads" {
 resource "google_cloud_scheduler_job" "reindex_minutes" {
   project          = var.project_id
   region           = var.region
-  name             = "podcast-ui-reindex-minutes"
+  name             = "${local.ui_name_prefix}-reindex-minutes"
   description      = "Triggers Next.js reindex-minutes api endpoint"
   schedule         = "0 4 * * *"
   time_zone        = "Asia/Tokyo"

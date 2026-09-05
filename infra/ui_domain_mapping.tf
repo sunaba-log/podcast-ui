@@ -13,7 +13,7 @@ resource "google_cloud_run_domain_mapping" "app" {
   }
 
   spec {
-    route_name = google_cloud_run_v2_service.podcast_ui.name
+    route_name = google_cloud_run_v2_service.sparkcast_ui.name
   }
 
   # 手動作成分を import したため、証明書モード（既定 AUTOMATIC で ForceNew になる）と

@@ -9,7 +9,7 @@ on:
     branches:
       - develop
     paths:
-      - "ui/**"
+      - "apps/ui/**"
       - ".github/workflows/pr-preview.yml"
 
 concurrency:
@@ -19,12 +19,11 @@ concurrency:
 env:
   PROJECT_ID: sunabalog-dev
   REGION: asia-northeast1
-  SERVICE: podcast-ui-dev
-  IMAGE: asia-northeast1-docker.pkg.dev/sunabalog-dev/podcast-ui/podcast-ui
+  SERVICE: sparkcast-ui-dev
+  IMAGE: asia-northeast1-docker.pkg.dev/sunabalog-dev/sparkcast-ui/sparkcast-ui
   WORKLOAD_IDENTITY_PROVIDER: projects/452347646684/locations/global/workloadIdentityPools/github-actions/providers/github-oidc
   DEPLOYER_SA: github-actions-deployer@sunabalog-dev.iam.gserviceaccount.com
-  CLOUD_SQL_INSTANCE_CONNECTION_NAME: sunabalog-dev:asia-northeast1:podcast-automator-postgres-dev
-  DB_PASSWORD_SECRET: db-password
+  DATABASE_URL_SECRET: supabase-database-url-dev
   TAG: pr-${{ github.event.pull_request.number }}
   # Firebase Web SDK の公開設定値（ビルド時にバンドルへ埋め込まれる）
   NEXT_PUBLIC_FIREBASE_API_KEY: AIzaSyCBsZ7_ZC0fin7XpPxgborVu_73zUidJkI
@@ -55,24 +54,24 @@ jobs:
         run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
 
       # プレビューは dev DB を共有するため、新しいコードを配信する前に
-      # DB スキーマを収束させる（cd.yml と同一手順・Cloud SQL Connector 経由）。
+      # DB スキーマを収束させる（cd.yml と同一手順・Supabase dev へ接続）。
       # マージ前の PR のスキーマ変更が dev DB へ先行適用されることを許容する運用。
       # マイグレーションは追加のみ・冪等に作る（migrations/README 運用に従う）。
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
       - name: Run migrations
-        working-directory: ui
+        working-directory: apps/ui
         run: |
           npm ci
-          export GOOGLE_CLOUD_PROJECT="$PROJECT_ID"
-          export DB_NAME=podcast
-          export DB_USER=podcast_app
-          export DB_PASSWORD="$(gcloud secrets versions access latest --secret="$DB_PASSWORD_SECRET" --project="$PROJECT_ID")"
+          DATABASE_URL="$(gcloud secrets versions access latest --secret="$DATABASE_URL_SECRET" --project="$PROJECT_ID")"
+          # 接続文字列はパスワードを含むため、以降のログ出力をマスクする。
+          echo "::add-mask::$DATABASE_URL"
+          export DATABASE_URL
           npm run db:migrate
 
       - name: Build image
-        working-directory: ui
+        working-directory: apps/ui
         run: |
           docker build \
             --build-arg NEXT_PUBLIC_FIREBASE_API_KEY="$NEXT_PUBLIC_FIREBASE_API_KEY" \

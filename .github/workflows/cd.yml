@@ -1,7 +1,9 @@
-# アプリのビルド・デプロイ（Cloud Run）。ブランチで環境を切り替える。
-#   develop → dev（sunabalog-dev） / main → prod（sunabalog-prod）
-# インフラ（Terraform）は CI では回さず、`make terraform-apply ENVIRONMENT=<env>`
-# で手動デプロイする。PR プレビューは pr-preview.yml が担当する。
+# アプリのビルド・デプロイ（Cloud Run）とインフラの apply（Terraform）。
+# ブランチで環境を切り替える: develop → dev（sunabalog-dev） / main → prod（sunabalog-prod）
+#   - ui ジョブ   : apps/ui/** の変更で Cloud Run Service を deploy
+#   - infra ジョブ: infra/** または apps/automator/** の変更で terraform apply
+# ローカルからの手動 apply は `make terraform-deploy-<env>`、
+# PR プレビューは pr-preview.yml が担当する。
 name: cd
 
 on:
@@ -10,10 +12,14 @@ on:
       - develop
       - main
     paths:
-      - "ui/**"
-      - "automator/**"
+      - "apps/ui/**"
+      - "apps/automator/**"
+      - "infra/**"
       - ".github/workflows/cd.yml"
-  # automator の手動 plan/apply 用（push でも automator/** 変更時に自動デプロイする）
+      # 手順書などドキュメントのみの変更で apply を走らせない（#125）。
+      # 除外は後方のパターンが勝つため、必ず positive の後ろに置くこと。
+      - "!infra/docs/**"
+  # automator の手動 plan/apply 用（push でも apps/automator/** 変更時に自動デプロイする）
   workflow_dispatch:
     inputs:
       target_branch:
@@ -29,6 +35,11 @@ on:
         options:
           - plan
           - apply
+      deploy_ui:
+        description: "ui: イメージを再ビルドして Cloud Run へデプロイする"
+        required: false
+        default: false
+        type: boolean
 
 concurrency:
   group: cd-${{ github.ref_name }}
@@ -53,23 +64,45 @@ jobs:
       - uses: dorny/paths-filter@v3
         id: filter
         with:
+          # base 未指定だと「リポジトリ既定ブランチ(main)との全差分」が比較対象になり、
+          # develop への push では main に先行している全コミットが含まれてフィルタが
+          # 実質無効化される（#127）。push されたブランチと同じ ref を渡すと
+          # 「push 直前のコミットとの比較」になる。
+          # workflow_dispatch では空文字＝既定動作に委ねる（infra ジョブは
+          # github.event_name == 'workflow_dispatch' で短絡評価され、ui ジョブは
+          # push を要求するため、dispatch 時にこの結果は使われない）。
+          base: ${{ github.event_name == 'push' && github.ref_name || '' }}
           filters: |
             ui:
-              - 'ui/**'
+              - 'apps/ui/**'
               - '.github/workflows/cd.yml'
+            # dorny/paths-filter は各パターンを OR で評価するため '!' は除外にならない
+            # （'!infra/docs/**' が「infra/docs 以外の全ファイル」に一致してしまう）。
+            # ドキュメントのみの変更は上の on.push.paths 側で弾く。
             infra:
               - 'infra/**'
-              - 'automator/**'
+              - 'apps/automator/**'
 
-  # ui のビルド・デプロイ（push 時・ui 変更時のみ）
+  # ui のビルド・デプロイ。push で apps/ui/** が変わったとき、または
+  # workflow_dispatch で deploy_ui = true を指定したとき。
+  # 手動起動を用意しているのは、コード変更なしにイメージを再ビルド・再配信したい
+  # ケースがあるため（Artifact Registry を作り直してイメージが消えた等）。
   ui:
     needs: changes
-    if: github.event_name == 'push' && needs.changes.outputs.ui == 'true'
+    if: |
+      (github.event_name == 'push' && needs.changes.outputs.ui == 'true') ||
+      (github.event_name == 'workflow_dispatch' && inputs.deploy_ui)
     runs-on: ubuntu-latest
     steps:
       - name: Resolve environment
         run: |
-          if [[ "${GITHUB_REF}" == "refs/heads/main" ]]; then
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            REF="refs/heads/${{ inputs.target_branch }}"
+          else
+            REF="${GITHUB_REF}"
+          fi
+          echo "TARGET_REF=$REF" >> "$GITHUB_ENV"
+          if [[ "$REF" == "refs/heads/main" ]]; then
             {
               echo "ENVIRONMENT=prod"
               echo "PROJECT_ID=sunabalog-prod"
@@ -77,8 +110,7 @@ jobs:
               echo "IMAGE=asia-northeast1-docker.pkg.dev/sunabalog-prod/podcast-ui/podcast-ui"
               echo "WORKLOAD_IDENTITY_PROVIDER=projects/697315992056/locations/global/workloadIdentityPools/github-actions/providers/github-oidc"
               echo "DEPLOYER_SA=github-actions-deployer@sunabalog-prod.iam.gserviceaccount.com"
-              echo "CLOUD_SQL_INSTANCE_CONNECTION_NAME=sunabalog-prod:asia-northeast1:podcast-automator-postgres-prod"
-              echo "DB_PASSWORD_SECRET=podcast-automator-database-password-prod"
+              echo "DATABASE_URL_SECRET=supabase-database-url-prod"
               echo "NEXT_PUBLIC_FIREBASE_API_KEY=AIzaSyCOe16OGUrP1qWtJTKlatf5gbuKRdiLDg8"
               echo "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=sunabalog-prod.firebaseapp.com"
               echo "NEXT_PUBLIC_FIREBASE_PROJECT_ID=sunabalog-prod"
@@ -89,12 +121,11 @@ jobs:
             {
               echo "ENVIRONMENT=dev"
               echo "PROJECT_ID=sunabalog-dev"
-              echo "SERVICE=podcast-ui-dev"
-              echo "IMAGE=asia-northeast1-docker.pkg.dev/sunabalog-dev/podcast-ui/podcast-ui"
+              echo "SERVICE=sparkcast-ui-dev"
+              echo "IMAGE=asia-northeast1-docker.pkg.dev/sunabalog-dev/sparkcast-ui/sparkcast-ui"
               echo "WORKLOAD_IDENTITY_PROVIDER=projects/452347646684/locations/global/workloadIdentityPools/github-actions/providers/github-oidc"
               echo "DEPLOYER_SA=github-actions-deployer@sunabalog-dev.iam.gserviceaccount.com"
-              echo "CLOUD_SQL_INSTANCE_CONNECTION_NAME=sunabalog-dev:asia-northeast1:podcast-automator-postgres-dev"
-              echo "DB_PASSWORD_SECRET=db-password"
+              echo "DATABASE_URL_SECRET=supabase-database-url-dev"
               echo "NEXT_PUBLIC_FIREBASE_API_KEY=AIzaSyCBsZ7_ZC0fin7XpPxgborVu_73zUidJkI"
               echo "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=sunabalog-dev.firebaseapp.com"
               echo "NEXT_PUBLIC_FIREBASE_PROJECT_ID=sunabalog-dev"
@@ -104,6 +135,8 @@ jobs:
           fi
 
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TARGET_REF }}
 
       - uses: google-github-actions/auth@v2
         with:
@@ -115,22 +148,23 @@ jobs:
       - name: Configure docker for Artifact Registry
         run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
 
-      # 新しいコードを配信する前に DB スキーマを収束させる（Cloud SQL Connector 経由）。
+      # 新しいコードを配信する前に DB スキーマを収束させる。
+      # 接続先はアプリ（Cloud Run）と同じ Supabase の DATABASE_URL secret（#90 / #120）。
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
       - name: Run migrations
-        working-directory: ui
+        working-directory: apps/ui
         run: |
           npm ci
-          export GOOGLE_CLOUD_PROJECT="$PROJECT_ID"
-          export DB_NAME=podcast
-          export DB_USER=podcast_app
-          export DB_PASSWORD="$(gcloud secrets versions access latest --secret="$DB_PASSWORD_SECRET" --project="$PROJECT_ID")"
+          DATABASE_URL="$(gcloud secrets versions access latest --secret="$DATABASE_URL_SECRET" --project="$PROJECT_ID")"
+          # 接続文字列はパスワードを含むため、以降のログ出力をマスクする。
+          echo "::add-mask::$DATABASE_URL"
+          export DATABASE_URL
           npm run db:migrate
 
       - name: Build image
-        working-directory: ui
+        working-directory: apps/ui
         run: |
           docker build \
             --build-arg NEXT_PUBLIC_FIREBASE_API_KEY="$NEXT_PUBLIC_FIREBASE_API_KEY" \
@@ -163,13 +197,13 @@ jobs:
         if: always()
         with:
           webhook: ${{ secrets.DISCORD_ACTIONS_WEBHOOK_URL }}
-          title: "podcast-ui deploy (${{ env.ENVIRONMENT }})"
+          title: "${{ env.SERVICE }} deploy (${{ env.ENVIRONMENT }})"
           description: "${{ env.APP_URL }}"
           username: GitHub Actions
 
-  # Terraform デプロイ（push で infra/** または automator/** 変更時、または手動 dispatch）。
+  # Terraform デプロイ（push で infra/** または apps/automator/** 変更時、または手動 dispatch）。
   # 統合後の単一 infra/ を apply する（ui の Cloud Run 基盤 + automator の Job/GCS/SQL 等）。
-  # automator/** も対象にするのは app イメージ変更時に local-exec の再ビルド・push が要るため。
+  # apps/automator/** も対象にするのは app イメージ変更時に local-exec の再ビルド・push が要るため。
   # 認証は WIF（キーレス）。共有 SA github-actions-deployer を impersonate する。
   infra:
     needs: changes

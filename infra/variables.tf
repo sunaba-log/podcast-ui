@@ -10,7 +10,24 @@ variable "environment" {
 
 variable "system" {
   type        = string
-  description = "System name for default labels."
+  description = "System name for default labels（provider の default_labels 用）。実リソース名の接頭辞は automator_name_prefix / ui_name_prefix を使う（#72）。"
+}
+
+# --- 実リソース名の接頭辞（#72: podcast-* → sparkcast-* の段階移行） ---
+# 未指定なら現行名を維持するため、tfvars を触らない限り plan は no-change。
+# 切替は「安いもの（データを持たない）」→「データを持つもの」の順に段階実施する。
+# 手順・検証・ロールバックは infra/docs/sparkcast-rename-runbook.md を参照。
+
+variable "automator_name_prefix" {
+  type        = string
+  default     = "podcast-automator"
+  description = "automator 系リソース名の接頭辞（GCS / Cloud Run Job / Scheduler / Workflows / Eventarc / Artifact Registry）。var.system とは独立（ラベル変更が名前に波及しないようにするため）。"
+}
+
+variable "ui_name_prefix" {
+  type        = string
+  default     = "podcast-ui"
+  description = "ui 系リソース名の接頭辞（Cloud Run Service / Artifact Registry / Scheduler）。"
 }
 
 variable "org" {
@@ -250,6 +267,35 @@ variable "budget_amount_jpy" {
     condition     = var.budget_amount_jpy > 0
     error_message = "budget_amount_jpy must be a positive number."
   }
+}
+
+variable "backup_retention_days" {
+  type        = number
+  description = "Days to retain DB backup dumps in GCS before deletion (#90 Stage 4)."
+  default     = 30
+
+  validation {
+    condition     = var.backup_retention_days > 0
+    error_message = "backup_retention_days must be a positive number."
+  }
+}
+
+variable "backup_bucket_name_override" {
+  type        = string
+  default     = null
+  description = "DB バックアップ用 GCS バケット名の一時的な固定値（#72 Stage 6 の 2 段階 apply 用）。通常は null。"
+}
+
+variable "backup_bucket_force_destroy" {
+  type        = bool
+  default     = false
+  description = "DB バックアップ用 GCS バケットの force_destroy。#72 のリネームでバケットを作り直す環境だけ true にする（prod は false のままダンプを rsync で移送すること）。"
+}
+
+variable "backup_scheduler_cron" {
+  type        = string
+  description = "Cron schedule (Asia/Tokyo) for the daily DB backup job."
+  default     = "0 3 * * *"
 }
 
 variable "enable_guest_mode" {

@@ -74,7 +74,7 @@ Terraform はリポジトリルートの `infra/`（ui + automator を統合し�
 ### デプロイ手段
 
 - GitHub Actions の CD (`.github/workflows/cd.yml`) からデプロイ
-  - `develop` / `main` への push（`infra/**` または `automator/**` 変更時）で自動実行
+  - `develop` / `main` への push（`infra/**` または `apps/automator/**` 変更時）で自動実行
   - `workflow_dispatch` でブランチ指定デプロイ
 - ローカルからは **リポジトリルートで** `make terraform-deploy-{dev,prod}` を実行
 

@@ -1,5 +1,5 @@
 resource "google_workflows_workflow" "main" {
-  name                = lower("${var.system}-${var.environment}")
+  name                = lower("${local.automator_name_prefix}-${var.environment}")
   region              = var.region
   service_account     = local.default_compute_service_account
   deletion_protection = false

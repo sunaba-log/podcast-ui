@@ -10,7 +10,7 @@
 resource "google_cloud_run_v2_job" "promoter" {
   count = var.enable_promoter ? 1 : 0
 
-  name                = "${var.system}-promoter-${var.environment}"
+  name                = "${local.automator_name_prefix}-promoter-${var.environment}"
   location            = var.region
   deletion_protection = false
 
@@ -93,7 +93,7 @@ resource "google_cloud_run_v2_job" "promoter" {
 resource "google_cloud_scheduler_job" "promoter" {
   count = var.enable_promoter ? 1 : 0
 
-  name             = "${var.system}-promoter-${var.environment}"
+  name             = "${local.automator_name_prefix}-promoter-${var.environment}"
   description      = "Scheduled auto post to X (every hour)"
   schedule         = var.promoter_scheduler_cron
   time_zone        = "Asia/Tokyo"

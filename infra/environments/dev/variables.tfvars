@@ -1,7 +1,15 @@
-environment        = "dev"
-system             = "podcast-automator"
-project_id         = "sunabalog-dev"
-gcs_force_destroy  = true
+environment = "dev"
+# provider の default_labels 用のシステム名（実リソース名の接頭辞ではない）。#72 Stage 1
+system            = "sparkcast"
+project_id        = "sunabalog-dev"
+gcs_force_destroy = true
+# #72 Stage 6: バケット改名で作り直すため dev のみ true（ダンプは開発データ）
+backup_bucket_force_destroy = true
+# 実リソース名の接頭辞（#72）
+automator_name_prefix = "sparkcast-automator"
+# #72 Stage 7: Cloud Run Service / Artifact Registry / Scheduler を sparkcast 名へ。
+# deletion_protection = false は 1 段階目（#135）で state に入れてある。
+ui_name_prefix     = "sparkcast-ui"
 gcs_retention_days = 3
 gcs_cors_origins = [
   "http://localhost:3000",
@@ -24,8 +32,12 @@ manage_firestore_database          = false
 budget_amount_jpy                  = 5000
 
 # podcast-ui（Cloud Run Service）
-app_service_account_id           = "podcast-ui-dev"
-app_service_account_display_name = "Podcast UI dev"
+# #72 Stage 8: アプリ実行 SA を sparkcast 名へ。SA は再作成となり、
+# ui_iam.tf / ui_secrets.tf / ui_github_actions.tf の binding が全て貼り直される。
+# #72 Stage 8: アプリ実行 SA を sparkcast 名へ。SA は再作成となり、
+# ui_iam.tf / ui_secrets.tf / ui_github_actions.tf の binding が全て貼り直される。
+app_service_account_id           = "sparkcast-ui-dev"
+app_service_account_display_name = "SparkCast UI dev"
 custom_domain                    = "dev.sparkcast.sunabalog.com"
 enable_guest_mode                = true
 rate_limit_daily                 = "500"

@@ -1,5 +1,5 @@
 resource "google_eventarc_trigger" "gcs_finalize" {
-  name            = lower("${var.system}-gcs-finalize-${var.environment}")
+  name            = lower("${local.automator_name_prefix}-gcs-finalize-${var.environment}")
   location        = var.region
   service_account = local.default_compute_service_account
 

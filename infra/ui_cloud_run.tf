@@ -3,21 +3,27 @@
 # ここではサービス定義・レジストリを管理する。API 有効化は
 # google_project_service.required（locals.required_services）に集約している。
 
-resource "google_artifact_registry_repository" "podcast_ui" {
+resource "google_artifact_registry_repository" "sparkcast_ui" {
   project       = var.project_id
   location      = var.region
-  repository_id = "podcast-ui"
+  repository_id = local.ui_name_prefix
   format        = "DOCKER"
   description   = "podcast-ui のアプリイメージ"
 
   depends_on = [google_project_service.required]
 }
 
-resource "google_cloud_run_v2_service" "podcast_ui" {
+resource "google_cloud_run_v2_service" "sparkcast_ui" {
   project  = var.project_id
   location = var.region
-  name     = "podcast-ui-${var.environment}"
+  name     = "${local.ui_name_prefix}-${var.environment}"
   ingress  = "INGRESS_TRAFFIC_ALL"
+
+  # provider の既定は true。他の Cloud Run リソース（job.tf / agenda.tf / promoter.tf /
+  # backup.tf / workflows.tf）と同様に false を明示する。true のままだと改名などの
+  # replace が「cannot destroy service without setting deletion_protection=false」で
+  # 失敗する（#72 Stage 7 で実際に発生）。
+  deletion_protection = false
 
   template {
     service_account = google_service_account.app.email
@@ -98,7 +104,23 @@ resource "google_cloud_run_v2_service" "podcast_ui" {
   # 不要な PATCH（リビジョン運用と競合し得る）を避けるため無視する。
   lifecycle {
     ignore_changes = [
+      # 実イメージは CD の gcloud run deploy が配信するため TF は関与しない。
+      # リソース定義のイメージは初回 apply 用のプレースホルダ。
+      #
+      # ⚠️ #72 Stage 7 で一時的にこれを外した経緯がある。Artifact Registry を
+      # 作り直した際に state が持つイメージが実在しなくなり、ignore したまま TF が
+      # それを再送して "Image not found" で更新に失敗したため。外して
+      # プレースホルダへ収束させたあと、ここで元に戻している。
+      # 外したままだと infra apply のたびにアプリがプレースホルダへ巻き戻る。
       template[0].containers[0].image,
+      # gcloud が付けたリビジョン名を TF が管理しないようにする。
+      #
+      # ⚠️ ただし ignore したままだとその名前が state に取り込まれ、TF が
+      # template（env 等）を変更する際に「同名リビジョンを別 config で再送」して
+      # 409 になる（#90 Stage 2 / #72 Stage 7 で実際に発生）。
+      # TF 側から env や service_account を変更する必要が生じたときは、
+      # 一時的にここを外して Cloud Run に自動採番させること
+      # （#72 Stage 8 の SA 改名では実際にそうした）。
       template[0].revision,
       template[0].labels,
       template[0].annotations,
@@ -121,20 +143,27 @@ resource "google_cloud_run_v2_service" "podcast_ui" {
 }
 
 # 管理画面はアプリ側の Firebase Auth で保護するため、HTTP は公開する。
+#
+# ⚠️ このバインディングの操作には run.services.setIamPolicy が必要で、共有デプロイ SA が
+# 持つ editor には含まれない。ui_github_actions.tf の shared_deployer_run_admin で
+# 付与済み（#72 Stage 7）。付与を消すとサービスの作り直しができなくなる。
 resource "google_cloud_run_v2_service_iam_member" "public" {
   project = var.project_id
   # ドメイン制限共有の解除（下記 org policy）が先に必要
-  location = google_cloud_run_v2_service.podcast_ui.location
-  name     = google_cloud_run_v2_service.podcast_ui.name
+  location = google_cloud_run_v2_service.sparkcast_ui.location
+  name     = google_cloud_run_v2_service.sparkcast_ui.name
   role     = "roles/run.invoker"
   member   = "allUsers"
 
+  # ⚠️ ここに shared_deployer_run_admin への depends_on を足してはいけない。
+  # 付与の create が、失敗し得る旧バインディングの destroy と同じ依存鎖に載り、
+  # destroy が失敗すると付与まで実行されなくなる（#72 で実際に発生）。
   depends_on = [google_org_policy_policy.allowed_policy_member_domains]
 }
 
 output "cloud_run_uri" {
   description = "Cloud Run サービスの URL"
-  value       = google_cloud_run_v2_service.podcast_ui.uri
+  value       = google_cloud_run_v2_service.sparkcast_ui.uri
 }
 
 # 組織のドメイン制限共有ポリシーの下では allUsers への権限付与ができないため、
