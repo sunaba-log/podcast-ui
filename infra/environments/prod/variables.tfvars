@@ -11,6 +11,11 @@ project_id = "sunabalog-prod"
 gcs_force_destroy           = true
 backup_bucket_force_destroy = true
 
+# #72 Stage 2-6: automator 系の実リソース名を sparkcast 系へ。
+# GCS 入力バケット / バックアップバケット / Cloud Run Job / Scheduler /
+# Workflows / Eventarc / Artifact Registry が対象。
+automator_name_prefix = "sparkcast-automator"
+
 gcs_retention_days = 30
 gcs_cors_origins = [
   "https://sparkcast.sunabalog.com",

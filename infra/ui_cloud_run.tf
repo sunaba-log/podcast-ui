@@ -121,7 +121,11 @@ resource "google_cloud_run_v2_service" "sparkcast_ui" {
       # TF 側から env や service_account を変更する必要が生じたときは、
       # 一時的にここを外して Cloud Run に自動採番させること
       # （#72 Stage 8 の SA 改名では実際にそうした）。
-      template[0].revision,
+      #
+      # ⚠️ #72 の prod リネームのあいだだけ外している。入力バケットの改名で
+      # GCS_UPLOAD_BUCKET が変わり、ignore したままだと 409 になる。
+      # prod のリネーム完了後に必ず戻すこと。
+      # template[0].revision,
       template[0].labels,
       template[0].annotations,
       # default_labels によるサービスラベル更新を抑止（gcloud 管理サービスへの不要 PATCH 回避）。
