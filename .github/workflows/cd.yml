@@ -106,8 +106,8 @@ jobs:
             {
               echo "ENVIRONMENT=prod"
               echo "PROJECT_ID=sunabalog-prod"
-              echo "SERVICE=podcast-ui-prod"
-              echo "IMAGE=asia-northeast1-docker.pkg.dev/sunabalog-prod/podcast-ui/podcast-ui"
+              echo "SERVICE=sparkcast-ui-prod"
+              echo "IMAGE=asia-northeast1-docker.pkg.dev/sunabalog-prod/sparkcast-ui/sparkcast-ui"
               echo "WORKLOAD_IDENTITY_PROVIDER=projects/697315992056/locations/global/workloadIdentityPools/github-actions/providers/github-oidc"
               echo "DEPLOYER_SA=github-actions-deployer@sunabalog-prod.iam.gserviceaccount.com"
               echo "DATABASE_URL_SECRET=supabase-database-url-prod"
