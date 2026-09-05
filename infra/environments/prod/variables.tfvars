@@ -1,7 +1,16 @@
-environment        = "prod"
-system             = "podcast-automator"
-project_id         = "sunabalog-prod"
-gcs_force_destroy  = false
+environment = "prod"
+# provider の default_labels 用のシステム名（実リソース名の接頭辞ではない）。#72 Stage 1
+system     = "sparkcast"
+project_id = "sunabalog-prod"
+
+# ⚠️ #72 Stage 5/6 の 1 段階目。force_destroy は destroy 時に state 側の値が読まれるため、
+# 「true 化」と「改名」を同一 apply で行うと destroy が失敗する（dev で実際に踏んだ）。
+# 先にフラグだけを state に入れ、次のリリースで接頭辞を切り替えて改名する。
+# 入力バケットは gcs_retention_days = 30 の一時領域、バックアップは改名後に
+# 日次ジョブが作り直す。改名完了後、gcs_force_destroy は false に戻すこと。
+gcs_force_destroy           = true
+backup_bucket_force_destroy = true
+
 gcs_retention_days = 30
 gcs_cors_origins = [
   "https://sparkcast.sunabalog.com",
