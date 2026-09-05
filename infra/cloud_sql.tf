@@ -8,7 +8,12 @@ resource "google_sql_database_instance" "podcast" {
   region           = var.region
   project          = var.project_id
 
-  deletion_protection = var.environment == "prod"
+  # ⚠️ #90 Stage 5（Cloud SQL 撤去）の 1 段階目として false にしている。
+  # deletion_protection は destroy 時に state 側の値が読まれるため、「false 化」と
+  # 「リソース定義の削除」を同一 apply で行うと destroy が失敗する
+  # （#72 でバケットと Cloud Run Service の両方で踏んだ）。
+  # 次のリリースでこのファイルごと削除する。
+  deletion_protection = false
 
   settings {
     edition           = "ENTERPRISE"
