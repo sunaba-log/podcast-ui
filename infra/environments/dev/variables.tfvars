@@ -3,8 +3,8 @@ environment = "dev"
 system            = "sparkcast"
 project_id        = "sunabalog-dev"
 gcs_force_destroy = true
-# #72 Stage 6: バケット改名で作り直すため dev のみ true（ダンプは開発データ）
-backup_bucket_force_destroy = true
+# #72 のリネームは完了。誤削除を防ぐため false に戻す。
+backup_bucket_force_destroy = false
 # 実リソース名の接頭辞（#72）
 automator_name_prefix = "sparkcast-automator"
 # #72 Stage 7: Cloud Run Service / Artifact Registry / Scheduler を sparkcast 名へ。
