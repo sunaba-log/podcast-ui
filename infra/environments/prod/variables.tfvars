@@ -15,6 +15,9 @@ backup_bucket_force_destroy = true
 # GCS 入力バケット / バックアップバケット / Cloud Run Job / Scheduler /
 # Workflows / Eventarc / Artifact Registry が対象。
 automator_name_prefix = "sparkcast-automator"
+# #72 Stage 7: Cloud Run Service / Artifact Registry / Scheduler を sparkcast 名へ。
+# deletion_protection = false は #147 の apply で既に state に入っている。
+ui_name_prefix = "sparkcast-ui"
 
 gcs_retention_days = 30
 gcs_cors_origins = [
@@ -34,9 +37,11 @@ enable_promoter                    = true
 manage_firestore_database          = true
 budget_amount_jpy                  = 10000
 
-# podcast-ui（Cloud Run Service）
-app_service_account_id           = "podcast-ui-prod"
-app_service_account_display_name = "Podcast UI prod"
+# sparkcast-ui（Cloud Run Service）
+# #72 Stage 8: アプリ実行 SA を sparkcast 名へ。SA は再作成となり、
+# ui_iam.tf / ui_secrets.tf / ui_github_actions.tf の binding が全て貼り直される。
+app_service_account_id           = "sparkcast-ui-prod"
+app_service_account_display_name = "SparkCast UI prod"
 custom_domain                    = "sparkcast.sunabalog.com"
 # prod の live サービスは automator と共有の既存シークレットを参照している
 db_password_secret_id = "podcast-automator-database-password-prod"
